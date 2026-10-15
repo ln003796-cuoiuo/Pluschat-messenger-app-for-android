@@ -16,7 +16,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 
 public class MainActivity extends Activity {
-    private final int bg = Color.rgb(10, 12, 20), panel = Color.rgb(25, 29, 43), white = Color.rgb(246, 247, 255), muted = Color.rgb(157, 166, 190), accent = Color.rgb(170, 153, 255);
+    private final int bg = Color.rgb(247, 246, 251), panel = Color.rgb(255, 255, 255), white = Color.rgb(39, 34, 54), muted = Color.rgb(132, 125, 149), accent = Color.rgb(107, 85, 183);
     private LinearLayout root, body, chatList;
     private String page = "auth", registrationStage = "phone", phoneChallenge = "", emailChallenge = "", currentChatId = "", currentChatTitle = "";
     private EditText phoneField, codeField, emailField, emailCodeField, firstNameField, lastNameField, usernameField, passwordField, bioField, birthField, educationField, identifierField, loginPasswordField, messageField, searchField;
@@ -57,9 +57,9 @@ public class MainActivity extends Activity {
         Button b = new Button(this);
         b.setText(label); b.setTextColor(0xff241b42); b.setAllCaps(false); b.setTextSize(15);
         b.setTypeface(Typeface.DEFAULT, Typeface.BOLD); b.setGravity(Gravity.CENTER);
-        b.setPadding(18, 0, 18, 0); b.setMinHeight(0); b.setMinimumHeight(0);
+        b.setPadding(20, 12, 20, 12); b.setMinHeight(0); b.setMinimumHeight(0);
         b.setStateListAnimator(null); b.setElevation(0); b.setBackground(shape(0xffd9d0ff, 18));
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, 52); p.setMargins(0, 6, 0, 6); b.setLayoutParams(p);
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2); p.height = Math.max(60, (int)(60 * getResources().getDisplayMetrics().density)); p.setMargins(0, 7, 0, 7); b.setLayoutParams(p);
         b.setOnClickListener(v -> action.run()); return b;
     }
     private Button tile(String symbol, String label, String detail, Runnable action) {
@@ -111,7 +111,7 @@ public class MainActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
         body = column();
-        body.setPadding(20, 18, 20, 24);
+        body.setPadding(20, 20, 20, 28);
         scroll.addView(body);
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
 
@@ -122,13 +122,13 @@ public class MainActivity extends Activity {
             LinearLayout nav = new LinearLayout(this);
             nav.setOrientation(LinearLayout.HORIZONTAL);
             nav.setGravity(Gravity.CENTER);
-            nav.setPadding(8, 8, 8, 8);
+            nav.setPadding(8, 7, 8, 7);
             nav.setBackgroundColor(Color.WHITE);
             nav.addView(navItem("⌂", "Чаты", "home", target.equals("home") || target.equals("chat") || target.equals("search")));
             nav.addView(navItem("♙", "Контакты", "contacts", target.equals("contacts")));
             nav.addView(navItem("✦", "Сообщества", "communities", target.equals("communities")));
             nav.addView(navItem("☺", "Профиль", "profile", target.equals("profile") || target.equals("settings") || target.equals("permissions") || target.startsWith("twofa_")));
-            root.addView(nav, new LinearLayout.LayoutParams(-1, 68));
+            root.addView(nav, new LinearLayout.LayoutParams(-1, 76));
         }
         setContentView(root);
         if (target.equals("auth")) authScreen();
@@ -148,10 +148,10 @@ public class MainActivity extends Activity {
         LinearLayout item = new LinearLayout(this);
         item.setOrientation(LinearLayout.VERTICAL);
         item.setGravity(Gravity.CENTER);
-        item.setPadding(4, 2, 4, 2);
-        TextView icon = text(symbol, 21, true, selected ? 0xff6751b8 : 0xff938da3);
+        item.setPadding(4, 5, 4, 5);
+        TextView icon = text(symbol, 24, true, selected ? 0xff6751b8 : 0xff938da3);
         icon.setGravity(Gravity.CENTER);
-        TextView caption = text(label, 10, selected, selected ? 0xff5f49ad : 0xff938da3);
+        TextView caption = text(label, 11, selected, selected ? 0xff5f49ad : 0xff938da3);
         caption.setGravity(Gravity.CENTER);
         item.addView(icon);
         item.addView(caption);
@@ -392,16 +392,16 @@ public class MainActivity extends Activity {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setGravity(Gravity.CENTER_HORIZONTAL);
-        card.setPadding(4, 12, 4, 12);
+        card.setPadding(10, 16, 10, 16);
         card.setBackground(shape(surface, 19));
-        TextView glyph = text(symbol, 24, true, ink);
+        TextView glyph = text(symbol, 28, true, ink);
         glyph.setGravity(Gravity.CENTER);
         card.addView(glyph, new LinearLayout.LayoutParams(-1, 31));
-        TextView name = text(title, 12, true, 0xff2d293b);
+        TextView name = text(title, 14, true, 0xff2d293b);
         name.setGravity(Gravity.CENTER);
         name.setPadding(0, 7, 0, 0);
         card.addView(name);
-        TextView caption = text(detail, 10, false, 0xff777186);
+        TextView caption = text(detail, 12, false, 0xff777186);
         caption.setGravity(Gravity.CENTER);
         caption.setPadding(0, 2, 0, 0);
         card.addView(caption);
