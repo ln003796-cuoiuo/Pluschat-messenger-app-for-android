@@ -61,7 +61,25 @@ public class MainActivity extends Activity {
         if (chatPoll != null) { chatHandler.removeCallbacks(chatPoll); chatPoll = null; }
         page = target;
         root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(lightMode ? Color.rgb(245,245,247) : bg);
-        TextView top = text("◈  PLUSCHAT", 18, true, lightMode ? Color.BLACK : white); top.setPadding(22, 18, 22, 18); root.addView(top, new LinearLayout.LayoutParams(-1, 62));
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(20, 12, 20, 12);
+        header.setBackground(shape(lightMode ? Color.WHITE : Color.rgb(19, 19, 24), 0));
+        ImageView logo = new ImageView(this);
+        logo.setImageResource(R.drawable.pluschat_logo);
+        logo.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(44, 44);
+        logoParams.setMargins(0, 0, 12, 0);
+        header.addView(logo, logoParams);
+        LinearLayout brandText = new LinearLayout(this);
+        brandText.setOrientation(LinearLayout.VERTICAL);
+        TextView brand = text("Плюс Чат", 21, true, lightMode ? Color.BLACK : white);
+        TextView tagline = text("Твои люди. Твои разговоры.", 12, false, muted);
+        brandText.addView(brand);
+        brandText.addView(tagline);
+        header.addView(brandText, new LinearLayout.LayoutParams(0, -2, 1));
+        root.addView(header, new LinearLayout.LayoutParams(-1, 76));
         ScrollView scroll = new ScrollView(this); body = column(); scroll.addView(body); root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
         setContentView(root);
         if (target.equals("auth")) authScreen();
