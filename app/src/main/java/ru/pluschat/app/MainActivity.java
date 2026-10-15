@@ -149,8 +149,8 @@ public class MainActivity extends Activity {
         request("POST", "auth/registration/complete", payload, false, (data,error)-> {
             if (!saveSession(data)) return;
             if (selectedAvatar != null) {
-                ApiClient.uploadFile(this, selectedAvatar, "me/avatar", SessionStore.token(this), (upload, error) -> {
-                    if (error != null) message("Аккаунт создан, но аватар не загрузился: " + error);
+                ApiClient.uploadFile(this, selectedAvatar, "me/avatar", SessionStore.token(this), (upload, uploadError) -> {
+                    if (uploadError != null) message("Аккаунт создан, но аватар не загрузился: " + uploadError);
                     showPage("home");
                 });
             } else showPage("home");
@@ -272,7 +272,7 @@ public class MainActivity extends Activity {
                 if(arr==null||arr.length()==0){results.addView(text("Пользователи не найдены или API ещё не подключён.",14,false,muted));return;}
                 for(int i=0;i<arr.length();i++){JSONObject u=arr.optJSONObject(i);if(u==null)continue;
                     String uid=u.optString("id"), name=u.optString("first_name","")+" "+u.optString("last_name",""), uname=u.optString("username","");
-                    results.addView(button(name+"  @"+uname,()->request("POST","chats",ApiClient.json("type","direct","user_id",uid),true,(c,error)->{currentChatId=c.optString("id",c.optString("chat_id",""));currentChatTitle=name;showPage("chat");})));
+                    results.addView(button(name+"  @"+uname,()->request("POST","chats",ApiClient.json("type","direct","user_id",uid),true,(chatData,apiError)->{currentChatId=chatData.optString("id",chatData.optString("chat_id",""));currentChatTitle=name;showPage("chat");})));
                 }
             });
         }));
@@ -288,7 +288,7 @@ public class MainActivity extends Activity {
             for(int i=0;i<arr.length();i++){JSONObject u=arr.optJSONObject(i);if(u==null)continue;
                 String id=u.optString("id",u.optString("user_id",""));
                 String name=u.optString("first_name","")+" "+u.optString("last_name","")+"  @"+u.optString("username","");
-                results.addView(button(name,()->request("POST","chats",ApiClient.json("type","direct","user_id",id),true,(ch,error)->{currentChatId=ch.optString("id",ch.optString("chat_id",""));currentChatTitle=name;showPage("chat");})));
+                results.addView(button(name,()->request("POST","chats",ApiClient.json("type","direct","user_id",id),true,(chatData,apiError)->{currentChatId=chatData.optString("id",chatData.optString("chat_id",""));currentChatTitle=name;showPage("chat");})));
             }
         });
         body.addView(button("Найти пользователя",()->showPage("search")));
@@ -302,9 +302,9 @@ public class MainActivity extends Activity {
             if(arr==null||arr.length()==0){results.addView(text("Новых уведомлений нет.",14,false,muted));return;}
             for(int i=0;i<arr.length();i++){JSONObject n=arr.optJSONObject(i);if(n==null)continue;
                 String id=n.optString("id","");String title=n.optString("title",n.optString("body","Уведомление"));
-                results.addView(button(title,()->request("POST","notifications/"+id+"/read",new JSONObject(),true,(d,error)->message("Отмечено как прочитанное."))));
+                results.addView(button(title,()->request("POST","notifications/"+id+"/read",new JSONObject(),true,(notificationData,apiError)->message("Отмечено как прочитанное."))));
             }
-            body.addView(button("Отметить все прочитанным",()->request("POST","notifications/read-all",new JSONObject(),true,(d,error)->message("Готово."))));
+            body.addView(button("Отметить все прочитанным",()->request("POST","notifications/read-all",new JSONObject(),true,(notificationData,apiError)->message("Готово."))));
         });
         body.addView(button("Назад",()->showPage("home")));
     }
