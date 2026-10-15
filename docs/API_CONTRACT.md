@@ -7,7 +7,7 @@ The Android client calls only this gateway. The gateway validates inputs and for
 ## Common rules
 - JSON UTF-8 requests/responses, except multipart uploads.
 - Authenticated requests use `Authorization: Bearer <access_token>`.
-- Error format: `{"error":{"code":"...","message":"..."}}`.
+- Error format: `{"error":{"code":"...","message":"..."}}`. The gateway must accept `X-HTTP-Method-Override: PATCH` on POST requests for PATCH operations, because the Android client uses this compatibility path.
 - Use TLS, rate limits, OTP expiry/attempt limits, password hashing, refresh-token rotation, authorization checks on every object, and audit sensitive changes.
 - Registration completion returns session tokens; the app enters the account immediately without a second login.
 - Optional profile fields may be omitted or empty. Derive age from birth date.
