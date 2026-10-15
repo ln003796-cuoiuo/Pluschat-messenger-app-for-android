@@ -108,7 +108,28 @@ public class MainActivity extends Activity {
         brandText.addView(tagline);
         header.addView(brandText, new LinearLayout.LayoutParams(0, -2, 1));
         root.addView(header, new LinearLayout.LayoutParams(-1, 76));
-        ScrollView scroll = new ScrollView(this); body = column(); scroll.addView(body); root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        body = column();
+        body.setPadding(20, 18, 20, 24);
+        scroll.addView(body);
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+
+        boolean signedIn = !SessionStore.token(this).isEmpty()
+                && !target.equals("auth") && !target.equals("register")
+                && !target.equals("twofa");
+        if (signedIn) {
+            LinearLayout nav = new LinearLayout(this);
+            nav.setOrientation(LinearLayout.HORIZONTAL);
+            nav.setGravity(Gravity.CENTER);
+            nav.setPadding(8, 8, 8, 8);
+            nav.setBackgroundColor(Color.WHITE);
+            nav.addView(navItem("⌂", "Чаты", "home", target.equals("home") || target.equals("chat") || target.equals("search")));
+            nav.addView(navItem("♙", "Контакты", "contacts", target.equals("contacts")));
+            nav.addView(navItem("✦", "Сообщества", "communities", target.equals("communities")));
+            nav.addView(navItem("☺", "Профиль", "profile", target.equals("profile") || target.equals("settings") || target.equals("permissions") || target.startsWith("twofa_")));
+            root.addView(nav, new LinearLayout.LayoutParams(-1, 68));
+        }
         setContentView(root);
         if (target.equals("auth")) authScreen();
         else if (target.equals("register")) registerScreen();
@@ -123,6 +144,26 @@ public class MainActivity extends Activity {
         else if (target.equals("twofa_setup")) twoFactorSetupScreen();
         else if (target.equals("permissions")) permissionsScreen();
     }
+    private View navItem(String symbol, String label, String destination, boolean selected) {
+        LinearLayout item = new LinearLayout(this);
+        item.setOrientation(LinearLayout.VERTICAL);
+        item.setGravity(Gravity.CENTER);
+        item.setPadding(4, 2, 4, 2);
+        TextView icon = text(symbol, 21, true, selected ? 0xff6751b8 : 0xff938da3);
+        icon.setGravity(Gravity.CENTER);
+        TextView caption = text(label, 10, selected, selected ? 0xff5f49ad : 0xff938da3);
+        caption.setGravity(Gravity.CENTER);
+        item.addView(icon);
+        item.addView(caption);
+        item.setBackground(shape(selected ? 0xfff0ecff : Color.WHITE, 15));
+        item.setOnClickListener(v -> {
+            if (destination.equals("communities")) openCommunity(false);
+            else showPage(destination);
+        });
+        item.setLayoutParams(new LinearLayout.LayoutParams(0, -1, 1));
+        return item;
+    }
+
     private void title(String s) { body.addView(text(s, 25, true, lightMode ? Color.BLACK : white)); }
     private void subtitle(String s) { TextView t = text(s, 14, false, muted); t.setPadding(0, 4, 0, 12); body.addView(t); }
     private void authScreen() {
