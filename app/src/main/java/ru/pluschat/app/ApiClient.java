@@ -28,7 +28,9 @@ public final class ApiClient {
                 String base = BuildConfig.API_BASE_URL;
                 URL url = new URL(base + path.replaceFirst("^/", ""));
                 connection = (HttpURLConnection) url.openConnection();
-                connection.setRequestMethod(method);
+                String actualMethod = method.equals("PATCH") ? "POST" : method;
+                connection.setRequestMethod(actualMethod);
+                if (method.equals("PATCH")) connection.setRequestProperty("X-HTTP-Method-Override", "PATCH");
                 connection.setConnectTimeout(15000);
                 connection.setReadTimeout(20000);
                 connection.setRequestProperty("Accept", "application/json");
