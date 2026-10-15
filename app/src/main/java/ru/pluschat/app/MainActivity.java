@@ -2,6 +2,8 @@ package ru.pluschat.app;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -20,6 +22,8 @@ public class MainActivity extends Activity {
     private EditText phoneField, codeField, emailField, emailCodeField, firstNameField, lastNameField, usernameField, passwordField, bioField, birthField, educationField, identifierField, loginPasswordField, messageField, searchField;
     private ArrayList<JSONObject> chats = new ArrayList<>();
     private boolean lightMode = false;
+    private final Handler chatHandler = new Handler(Looper.getMainLooper());
+    private Runnable chatPoll;
 
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -53,6 +57,7 @@ public class MainActivity extends Activity {
         b.setOnClickListener(v -> action.run()); return b;
     }
     private void showPage(String target) {
+        if (chatPoll != null) { chatHandler.removeCallbacks(chatPoll); chatPoll = null; }
         page = target;
         root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(lightMode ? Color.rgb(245,245,247) : bg);
         TextView top = text("◈  PLUSCHAT", 18, true, lightMode ? Color.BLACK : white); top.setPadding(22, 18, 22, 18); root.addView(top, new LinearLayout.LayoutParams(-1, 62));
@@ -198,12 +203,24 @@ public class MainActivity extends Activity {
         body.addView(button("Отправить",()->{
             String msg=value(messageField);if(msg.trim().isEmpty())return;
             String clientId=java.util.UUID.randomUUID().toString();
-            request("POST","chats/"+currentChatId+"/messages",ApiClient.json("client_message_id",clientId,"type","text","body",msg),true,data->{messageField.setText("");history.setText(history.getText()+"\n\nВы: "+msg);});
+            request("POST","chats/"+currentChatId+"/messages",ApiClient.json("client_message_id",clientId,"type","text","body",msg),true,data->{messageField.setText("");refreshChatHistory(history);});
         }));
+        refreshChatHistory(history);
+        chatPoll = new Runnable() {
+            @Override public void run() {
+                if (!"chat".equals(page)) return;
+                refreshChatHistory(history);
+                chatHandler.postDelayed(this, 5000);
+            }
+        };
+        chatHandler.postDelayed(chatPoll, 5000);
+    }
+    private void refreshChatHistory(TextView history) {
+        if (currentChatId.isEmpty()) { history.setText("Открой чат из списка."); return; }
         request("GET","chats/"+currentChatId+"/messages?limit=50",null,true,data->{
             JSONArray arr=data.optJSONArray("messages");if(arr==null)arr=data.optJSONArray("data");
             StringBuilder out=new StringBuilder();
-            if(arr!=null)for(int i=0;i<arr.length();i++){JSONObject m=arr.optJSONObject(i);if(m!=null)out.append(m.optString("sender_name","")).append(": ").append(m.optString("body","")).append("\n");}
+            if(arr!=null)for(int i=0;i<arr.length();i++){JSONObject m=arr.optJSONObject(i);if(m!=null)out.append(m.optString("sender_name","")).append(": ").append(m.optString("body","")).append("\\n");}
             history.setText(out.length()==0?"Сообщений пока нет.":out.toString());
         });
     }
