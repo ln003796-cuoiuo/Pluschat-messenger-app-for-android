@@ -1,0 +1,72 @@
+package ru.pluschat.app;
+
+import android.os.Handler;
+import android.os.Looper;
+import org.json.JSONObject;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+public final class ApiClient {
+    public interface Callback { void onResult(JSONObject body, String error); }
+    private static final ExecutorService IO = Executors.newFixedThreadPool(3);
+    private static final Handler MAIN = new Handler(Looper.getMainLooper());
+    private ApiClient() {}
+
+    public static void request(String method, String path, JSONObject payload, String token, Callback callback) {
+        IO.execute(() -> {
+            HttpURLConnection connection = null;
+            JSONObject response = new JSONObject();
+            String error = null;
+            try {
+                String base = BuildConfig.API_BASE_URL;
+                URL url = new URL(base + path.replaceFirst("^/", ""));
+                connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod(method);
+                connection.setConnectTimeout(15000);
+                connection.setReadTimeout(20000);
+                connection.setRequestProperty("Accept", "application/json");
+                connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+                if (token != null && !token.isEmpty()) connection.setRequestProperty("Authorization", "Bearer " + token);
+                if (payload != null && !method.equals("GET")) {
+                    connection.setDoOutput(true);
+                    byte[] bytes = payload.toString().getBytes(StandardCharsets.UTF_8);
+                    try (OutputStream os = connection.getOutputStream()) { os.write(bytes); }
+                }
+                int code = connection.getResponseCode();
+                InputStream stream = code >= 200 && code < 400 ? connection.getInputStream() : connection.getErrorStream();
+                if (stream != null) {
+                    StringBuilder text = new StringBuilder();
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+                        String line; while ((line = reader.readLine()) != null) text.append(line);
+                    }
+                    if (text.length() > 0) response = new JSONObject(text.toString());
+                }
+                if (code < 200 || code >= 300) {
+                    JSONObject e = response.optJSONObject("error");
+                    error = e != null ? e.optString("message", "Request failed (" + code + ")") : response.optString("message", "Request failed (" + code + ")");
+                }
+            } catch (Exception ex) {
+                error = "Не удалось подключиться к серверу. Проверь интернет и доступность шлюза.";
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+            JSONObject result = response;
+            String failure = error;
+            MAIN.post(() -> callback.onResult(result, failure));
+        });
+    }
+
+    public static JSONObject json(Object... pairs) {
+        JSONObject object = new JSONObject();
+        try { for (int i = 0; i + 1 < pairs.length; i += 2) object.put(String.valueOf(pairs[i]), pairs[i + 1]); }
+        catch (Exception ignored) {}
+        return object;
+    }
+}
