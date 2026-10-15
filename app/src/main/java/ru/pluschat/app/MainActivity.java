@@ -73,6 +73,7 @@ public class MainActivity extends Activity {
         else if (target.equals("settings")) settingsScreen();
         else if (target.equals("twofa")) twoFactorScreen();
         else if (target.equals("twofa_setup")) twoFactorSetupScreen();
+        else if (target.equals("permissions")) permissionsScreen();
     }
     private void title(String s) { body.addView(text(s, 25, true, lightMode ? Color.BLACK : white)); }
     private void subtitle(String s) { TextView t = text(s, 14, false, muted); t.setPadding(0, 4, 0, 12); body.addView(t); }
@@ -290,9 +291,32 @@ public class MainActivity extends Activity {
         body.addView(button(lightMode?"Включить тёмную тему":"Включить светлую тему",()->{lightMode=!lightMode;showPage("settings");}));
         body.addView(button("Двухэтапная аутентификация",()->message("Подключение 2FA будет доступно после реализации серверных endpoints и настройки способа подтверждения.")));
         body.addView(button("Активные устройства",()->message("Управление сессиями появится после подключения API устройств.")));
-        body.addView(button("Разрешения Android",()->{try{startActivity(new android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,android.net.Uri.parse("package:"+getPackageName())));}catch(Exception ignored){}}));
+        body.addView(button("Разрешения Android",()->showPage("permissions")));
         body.addView(button("Назад",()->showPage("home")));
     }
+
+    private void permissionsScreen() {
+        title("Разрешения");
+        subtitle("Запрашиваем доступ только когда он нужен. Можно отказать — обычные текстовые чаты продолжат работать.");
+        body.addView(button("Камера — фото профиля и будущая видеосвязь",()->askPermission(android.Manifest.permission.CAMERA,8101)));
+        body.addView(button("Микрофон — голосовые сообщения и будущие звонки",()->askPermission(android.Manifest.permission.RECORD_AUDIO,8102)));
+        body.addView(button("Контакты — поиск знакомых",()->askPermission(android.Manifest.permission.READ_CONTACTS,8103)));
+        body.addView(button("Геолокация — отправка местоположения",()->askPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION,8104)));
+        if (android.os.Build.VERSION.SDK_INT >= 33) body.addView(button("Уведомления о сообщениях",()->askPermission(android.Manifest.permission.POST_NOTIFICATIONS,8105)));
+        body.addView(button("Фото и файлы",()->message("Для выбора аватарки и вложений используется системный выбор файлов Android без полного доступа ко всей галерее.")));
+        body.addView(button("Открыть системные настройки Pluschat",()->{
+            try { startActivity(new android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,android.net.Uri.parse("package:"+getPackageName()))); }
+            catch(Exception ignored) {}
+        }));
+        body.addView(button("Назад",()->showPage("settings")));
+    }
+    private void askPermission(String permission, int requestCode) {
+        if (android.os.Build.VERSION.SDK_INT < 23 || checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            message("Разрешение уже доступно."); return;
+        }
+        requestPermissions(new String[]{permission}, requestCode);
+    }
+
     private void pickAvatar() {
         android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
         intent.setType("image/*");
