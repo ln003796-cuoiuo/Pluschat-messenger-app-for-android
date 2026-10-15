@@ -72,6 +72,7 @@ public class MainActivity extends Activity {
         else if (target.equals("profile")) profileScreen();
         else if (target.equals("settings")) settingsScreen();
         else if (target.equals("twofa")) twoFactorScreen();
+        else if (target.equals("twofa_setup")) twoFactorSetupScreen();
     }
     private void title(String s) { body.addView(text(s, 25, true, lightMode ? Color.BLACK : white)); }
     private void subtitle(String s) { TextView t = text(s, 14, false, muted); t.setPadding(0, 4, 0, 12); body.addView(t); }
@@ -172,6 +173,30 @@ public class MainActivity extends Activity {
         try { SessionStore.save(this,access,refresh); return true; }
         catch(Exception e){message("Не удалось безопасно сохранить сессию.");return false;}
     }
+
+    private void twoFactorSetupScreen() {
+        title("Двухэтапная аутентификация");
+        subtitle("Защита паролем и одноразовым кодом из приложения-аутентификатора.");
+        TextView secretView=text("Нажми «Настроить 2FA», чтобы получить секрет для приложения-аутентификатора.",14,false,muted);
+        body.addView(secretView);
+        EditText code=input("Одноразовый код из приложения",false); body.addView(code);
+        final String[] setupId={""};
+        body.addView(button("Настроить 2FA",()->request("POST","auth/2fa/setup",new JSONObject(),true,data->{
+            setupId[0]=data.optString("setup_id","");
+            String secret=data.optString("secret","");
+            String url=data.optString("otpauth_url","");
+            secretView.setText("Добавь аккаунт в приложение-аутентификатор. Секрет: "+(secret.isEmpty()?"см. инструкцию сервера":secret)+(url.isEmpty()?"":"\\n"+url));
+        })));
+        body.addView(button("Подтвердить и включить",()->{
+            if(setupId[0].isEmpty()){message("Сначала нажми «Настроить 2FA».");return;}
+            request("POST","auth/2fa/confirm",ApiClient.json("setup_id",setupId[0],"code",value(code)),true,data->{
+                message("Двухэтапная аутентификация включена.");showPage("settings");
+            });
+        }));
+        body.addView(button("Отключить 2FA",()->request("POST","auth/2fa/disable",new JSONObject(),true,data->{message("2FA отключена.");showPage("settings");})));
+        body.addView(button("Назад",()->showPage("settings")));
+    }
+
     private void homeScreen() {
         LinearLayout nav=row();
         body.addView(text("Твои чаты",25,true,lightMode?Color.BLACK:white));
