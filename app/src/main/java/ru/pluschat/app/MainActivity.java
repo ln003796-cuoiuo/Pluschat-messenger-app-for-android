@@ -69,6 +69,8 @@ public class MainActivity extends Activity {
         else if (target.equals("home")) homeScreen();
         else if (target.equals("chat")) chatScreen();
         else if (target.equals("search")) searchScreen();
+        else if (target.equals("contacts")) contactsScreen();
+        else if (target.equals("notifications")) notificationsScreen();
         else if (target.equals("profile")) profileScreen();
         else if (target.equals("settings")) settingsScreen();
         else if (target.equals("twofa")) twoFactorScreen();
@@ -206,7 +208,8 @@ public class MainActivity extends Activity {
         body.addView(button("Найти пользователя",()->showPage("search")));
         body.addView(button("Группы",()->openCommunity(false)));
         body.addView(button("Каналы",()->openCommunity(true)));
-        body.addView(button("Контакты",()->showPage("search")));
+        body.addView(button("Контакты",()->showPage("contacts")));
+        body.addView(button("Уведомления",()->showPage("notifications")));
         body.addView(button("Обновить чаты",this::loadChats));
         body.addView(button("Профиль",()->showPage("profile")));
         body.addView(button("Настройки",()->showPage("settings")));
@@ -275,6 +278,37 @@ public class MainActivity extends Activity {
         }));
         body.addView(button("Назад",()->showPage("home")));
     }
+
+    private void contactsScreen() {
+        title("Контакты"); subtitle("Люди, с которыми ты можешь быстро начать переписку.");
+        LinearLayout results=new LinearLayout(this);results.setOrientation(LinearLayout.VERTICAL);body.addView(results);
+        request("GET","contacts",null,true,data->{
+            JSONArray arr=data.optJSONArray("contacts");if(arr==null)arr=data.optJSONArray("data");
+            if(arr==null||arr.length()==0){results.addView(text("Контактов пока нет. Найди пользователя по username.",14,false,muted));return;}
+            for(int i=0;i<arr.length();i++){JSONObject u=arr.optJSONObject(i);if(u==null)continue;
+                String id=u.optString("id",u.optString("user_id",""));
+                String name=u.optString("first_name","")+" "+u.optString("last_name","")+"  @"+u.optString("username","");
+                results.addView(button(name,()->request("POST","chats",ApiClient.json("type","direct","user_id",id),true,ch->{currentChatId=ch.optString("id",ch.optString("chat_id",""));currentChatTitle=name;showPage("chat");})));
+            }
+        });
+        body.addView(button("Найти пользователя",()->showPage("search")));
+        body.addView(button("Назад",()->showPage("home")));
+    }
+    private void notificationsScreen() {
+        title("Уведомления"); subtitle("Новые сообщения, упоминания и события сообществ.");
+        LinearLayout results=new LinearLayout(this);results.setOrientation(LinearLayout.VERTICAL);body.addView(results);
+        request("GET","notifications",null,true,data->{
+            JSONArray arr=data.optJSONArray("notifications");if(arr==null)arr=data.optJSONArray("data");
+            if(arr==null||arr.length()==0){results.addView(text("Новых уведомлений нет.",14,false,muted));return;}
+            for(int i=0;i<arr.length();i++){JSONObject n=arr.optJSONObject(i);if(n==null)continue;
+                String id=n.optString("id","");String title=n.optString("title",n.optString("body","Уведомление"));
+                results.addView(button(title,()->request("POST","notifications/"+id+"/read",new JSONObject(),true,d->message("Отмечено как прочитанное."))));
+            }
+            body.addView(button("Отметить все прочитанным",()->request("POST","notifications/read-all",new JSONObject(),true,d->message("Готово."))));
+        });
+        body.addView(button("Назад",()->showPage("home")));
+    }
+
     private void profileScreen() {
         title("Мой профиль");subtitle("Редактирование профиля будет работать через GET/PATCH me.");
         EditText name=input("Имя",false), surname=input("Фамилия",false), username=input("@username",false), bio=input("Описание",false), birth=input("Дата рождения YYYY-MM-DD",false), edu=input("Учёба / работа",false);
