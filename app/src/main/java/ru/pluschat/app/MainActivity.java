@@ -18,7 +18,7 @@ import java.util.ArrayList;
 public class MainActivity extends Activity {
     private final int bg = Color.rgb(247, 246, 251), panel = Color.rgb(255, 255, 255), white = Color.rgb(39, 34, 54), muted = Color.rgb(132, 125, 149), accent = Color.rgb(107, 85, 183);
     private LinearLayout root, body, chatList;
-    private String page = "auth", registrationStage = "phone", phoneChallenge = "", emailChallenge = "", currentChatId = "", currentChatTitle = "";
+    private String page = "auth", registrationStage = "email", phoneChallenge = "", emailChallenge = "", currentChatId = "", currentChatTitle = "";
     private EditText phoneField, codeField, emailField, emailCodeField, firstNameField, lastNameField, usernameField, passwordField, bioField, birthField, educationField, identifierField, loginPasswordField, messageField, searchField;
     private ArrayList<JSONObject> chats = new ArrayList<>();
     private boolean lightMode = true;
@@ -177,42 +177,28 @@ public class MainActivity extends Activity {
     }
     private void registerScreen() {
         title("Создание аккаунта");
-        if (registrationStage.equals("phone")) {
-            subtitle("1 из 3 · Номер телефона");
-            phoneField = input("Номер телефона с кодом страны", false); body.addView(phoneField);
-            body.addView(button("Отправить SMS-код", () -> {
-                String phone = value(phoneField); if (phone.isEmpty()) { message("Введи номер телефона."); return; }
-                request("POST", "auth/registration/start", ApiClient.json("phone", phone), false, (data,error)-> {
-                    phoneChallenge = data.optString("challenge_id", "");
-                    if (phoneChallenge.isEmpty()) { message("Сервер не вернул challenge_id."); return; }
-                    registrationStage = "phone_code"; showPage("register");
-                });
-            }));
-        } else if (registrationStage.equals("phone_code")) {
-            subtitle("2 из 3 · Подтверждение номера");
-            codeField = input("Код из SMS", false); body.addView(codeField);
-            body.addView(button("Подтвердить номер", () -> request("POST", "auth/registration/verify-phone", ApiClient.json("challenge_id", phoneChallenge, "code", value(codeField)), false, (data,error)-> {
-                registrationStage = "email"; showPage("register");
-            })));
-            body.addView(button("Назад", () -> { registrationStage = "phone"; showPage("register"); }));
-        } else if (registrationStage.equals("email")) {
-            subtitle("3 из 3 · Подтверждение почты");
+        if (registrationStage.equals("email")) {
+            subtitle("Шаг 1 из 3 · Подтверждение электронной почты");
             emailField = input("Электронная почта", false); body.addView(emailField);
             body.addView(button("Отправить код на почту", () -> {
-                String email = value(emailField); if (email.isEmpty()) { message("Введи email."); return; }
-                request("POST", "auth/registration/email/start", ApiClient.json("challenge_id", phoneChallenge, "email", email), false, (data,error)-> {
-                    emailChallenge = data.optString("challenge_id", phoneChallenge);
+                String email = value(emailField);
+                if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) { message("Введи корректный email."); return; }
+                request("POST", "auth/registration/email/start", ApiClient.json("email", email), false, (data,error)-> {
+                    emailChallenge = data.optString("challenge_id", "");
+                    if (emailChallenge.isEmpty()) { message("Сервер не вернул challenge_id."); return; }
                     registrationStage = "email_code"; showPage("register");
                 });
             }));
         } else if (registrationStage.equals("email_code")) {
-            subtitle("Введи код из письма.");
-            emailCodeField = input("Код из email", false); body.addView(emailCodeField);
-            body.addView(button("Подтвердить почту", () -> request("POST", "auth/registration/email/verify", ApiClient.json("challenge_id", emailChallenge, "code", value(emailCodeField)), false, (data,error)-> {
-                registrationStage = "profile"; showPage("register");
-            })));
+            subtitle("Шаг 2 из 3 · Введи код из письма");
+            emailCodeField = input("Код подтверждения", false); body.addView(emailCodeField);
+            body.addView(button("Подтвердить почту", () -> request("POST", "auth/registration/email/verify",
+                ApiClient.json("challenge_id", emailChallenge, "code", value(emailCodeField)), false, (data,error)-> {
+                    registrationStage = "profile"; showPage("register");
+                })));
+            body.addView(button("Изменить email", () -> { registrationStage = "email"; showPage("register"); }));
         } else {
-            subtitle("Данные аккаунта. Дата рождения, учёба и описание — необязательно.");
+            subtitle("Шаг 3 из 3 · Данные профиля. Email уже подтверждён.");
             body.addView(button("Выбрать аватарку", this::pickAvatar));
             if (selectedAvatar != null) subtitle("Аватар выбран. Он загрузится после создания аккаунта.");
             firstNameField = input("Имя", false); body.addView(firstNameField);
@@ -223,7 +209,7 @@ public class MainActivity extends Activity {
             birthField = input("Дата рождения YYYY-MM-DD (необязательно)", false); body.addView(birthField);
             educationField = input("Учёба / работа (необязательно)", false); body.addView(educationField);
             body.addView(button("Создать аккаунт и войти", this::completeRegistration));
-            body.addView(button("Назад", () -> { registrationStage = "email"; showPage("register"); }));
+            body.addView(button("Назад", () -> { registrationStage = "email_code"; showPage("register"); }));
         }
         body.addView(button("Отмена", () -> showPage("auth")));
     }
