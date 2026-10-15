@@ -20,7 +20,7 @@ public class CommunityDetailActivity extends Activity {
     private Button button(String s,Runnable r){Button b=new Button(this);b.setText(s);b.setAllCaps(false);b.setTextColor(bg);b.setBackground(shape(0xffcdcdd4));b.setOnClickListener(v->r.run());return b;}
     private EditText field(String hint){EditText e=new EditText(this);e.setHint(hint);e.setTextColor(white);e.setHintTextColor(muted);e.setBackground(shape(0xff17171a));return e;}
     private void render(){
-        LinearLayout root=new LinearLayout(this);root.setOrientation(1);root.setPadding(20,24,20,20);root.setBackgroundColor(bg);
+        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(20,24,20,20);root.setBackgroundColor(bg);
         root.addView(label(titleText==null?"Сообщество":titleText,25,true));
         root.addView(label(channel?"Канал · публикации и подписчики":"Группа · участники, темы и права",14,false));
         root.addView(button(channel?"Создать публикацию":"Создать тему",()->createContent()));
@@ -28,7 +28,7 @@ public class CommunityDetailActivity extends Activity {
         root.addView(button(channel?"Подписчики":"Участники",()->loadSublist()));
         if(!channel)root.addView(button("Пригласить участника по ID",()->inviteMember()));
         root.addView(button("Обновить",this::loadContent));
-        ScrollView scroll=new ScrollView(this);list=new LinearLayout(this);list.setOrientation(1);scroll.addView(list);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        ScrollView scroll=new ScrollView(this);list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);scroll.addView(list);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         root.addView(button("Назад",this::finish));setContentView(root);loadContent();
     }
     private void loadContent(){
@@ -47,7 +47,7 @@ public class CommunityDetailActivity extends Activity {
     private void createContent(){
         EditText title=field(channel?"Текст публикации":"Название темы");
         EditText body=field("Описание или текст (необязательно)");
-        LinearLayout box=new LinearLayout(this);box.setOrientation(1);box.addView(title);box.addView(body);
+        LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.addView(title);box.addView(body);
         new AlertDialog.Builder(this).setTitle(channel?"Новая публикация":"Новая тема").setView(box)
             .setNegativeButton("Отмена",null).setPositiveButton("Создать",(d,w)->{
                 if(title.getText().toString().trim().isEmpty()){Toast.makeText(this,"Заполни название или текст",Toast.LENGTH_SHORT).show();return;}
@@ -59,7 +59,7 @@ public class CommunityDetailActivity extends Activity {
     }
     private void editSettings(){
         EditText name=field("Новое название");name.setText(titleText==null?"":titleText);
-        EditText description=field("Описание");LinearLayout box=new LinearLayout(this);box.setOrientation(1);box.addView(name);box.addView(description);
+        EditText description=field("Описание");LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.addView(name);box.addView(description);
         new AlertDialog.Builder(this).setTitle("Настройки").setView(box).setNegativeButton("Отмена",null).setPositiveButton("Сохранить",(d,w)->{
             String endpoint=(channel?"channels/":"groups/")+id;
             ApiClient.request("PATCH",endpoint,ApiClient.json("title",name.getText().toString().trim(),"description",description.getText().toString().trim()),SessionStore.token(this),(data,error)->Toast.makeText(this,error==null?"Сохранено":error,Toast.LENGTH_LONG).show());
