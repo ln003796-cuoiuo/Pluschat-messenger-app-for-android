@@ -14,11 +14,10 @@ The Android client calls only this gateway. The gateway validates inputs and for
 - Ask for Android permissions only when the related feature is used. Declining a permission must not block text messaging.
 
 ## Authentication and registration
-- `POST auth/registration/start` — `{phone}`; sends SMS and returns `{challenge_id, expires_in}`.
-- `POST auth/registration/verify-phone` — `{challenge_id, code}`.
-- `POST auth/registration/email/start` — `{challenge_id, email}`; sends email code/link and returns an email challenge ID.
+- `POST auth/registration/email/start` — `{email}`; sends a verification code and returns `{challenge_id, expires_in}`. A verified phone challenge ID may optionally be supplied for users who choose to add a phone.
 - `POST auth/registration/email/verify` — `{challenge_id, code}`.
-- `POST auth/registration/complete` — `{challenge_id, email_challenge_id, email, password, first_name, last_name, username, bio?, birth_date?, education?, avatar_upload_id?}`; requires verified phone and email, returns `{user, access_token, refresh_token, expires_in}`.
+- Optional phone verification: `POST auth/registration/start` — `{phone}`; sends SMS and returns `{challenge_id, expires_in}`; then `POST auth/registration/verify-phone` — `{challenge_id, code}`. SMS requires a configured provider.
+- `POST auth/registration/complete` — `{challenge_id?, email_challenge_id, email, password, first_name, last_name, username, bio?, birth_date?, education?, avatar_upload_id?}`; requires verified email, and verified phone only if a phone challenge is supplied. Returns `{user, access_token, refresh_token, expires_in}`.
 - `POST auth/login` — `{identifier, password}` where identifier is phone or email; returns tokens or `{requires_2fa:true, challenge_id}`.
 - `POST auth/2fa/verify` — `{challenge_id, code}`; returns session tokens.
 - `POST auth/token/refresh` — `{refresh_token}`; rotates refresh token.
@@ -67,4 +66,4 @@ The Android client calls only this gateway. The gateway validates inputs and for
 - If the gateway is unavailable, show a useful connection error and preserve drafts.
 - Use pagination for history and lists; deduplicate messages using client_message_id.
 - Use push notifications when server-side push is configured; while app is open, refresh messages using polling until a realtime service exists.
-- This document is the integration contract. The server, database, SMS/email delivery providers, upload handling, push delivery, and 2FA endpoints still need implementation on hosting.
+- This document is the integration contract. The PHP gateway currently implements email-code registration, password login, token refresh/revocation, profile read/update, user search, direct chat creation, and text-message history/send. Import `database/schema.sql`, deploy the PHP gateway, and configure `config.php` from `config.example.php`. Email delivery must work through PHP `mail()` on the host. SMS, avatar uploads, push delivery, and 2FA still require provider/endpoint setup.
