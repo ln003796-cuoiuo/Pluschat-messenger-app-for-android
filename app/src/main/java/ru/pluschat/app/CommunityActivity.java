@@ -26,6 +26,8 @@ public class CommunityActivity extends Activity {
         EditText name=field(channel?"Название канала":"Название группы");
         EditText description=field("Описание (необязательно)");
         EditText visibility=field("Тип: private или public");visibility.setText("private");
+        form.addView(name);form.addView(description);form.addView(visibility);
+        form.setPadding(0,10,0,4);root.addView(form);
         root.addView(button(channel?"＋  Создать канал":"＋  Создать группу",()->{
             if(name.getText().toString().trim().isEmpty()){Toast.makeText(this,"Укажи название",Toast.LENGTH_SHORT).show();return;}
             JSONObject payload=ApiClient.json("title",name.getText().toString().trim(),"description",description.getText().toString().trim(),"visibility",visibility.getText().toString().trim());
