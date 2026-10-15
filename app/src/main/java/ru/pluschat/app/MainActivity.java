@@ -171,7 +171,7 @@ public class MainActivity extends Activity {
         identifierField = input("Телефон или email", false); body.addView(identifierField);
         loginPasswordField = input("Пароль", true); body.addView(loginPasswordField);
         body.addView(button("Войти", this::login));
-        body.addView(button("Создать аккаунт", () -> { registrationStage = "phone"; showPage("register"); }));
+        body.addView(button("Создать аккаунт", () -> { registrationStage = "email"; showPage("register"); }));
         body.addView(button("Не получается войти?", () -> message("Восстановление пароля будет доступно после подключения серверного API.")));
         subtitle("Шлюз: " + BuildConfig.API_BASE_URL);
     }
