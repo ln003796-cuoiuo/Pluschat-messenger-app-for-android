@@ -372,7 +372,7 @@ public class MainActivity extends Activity {
     private void loadChats() {
         if (chatList == null || !"home".equals(page)) return;
         chatList.removeAllViews();
-        TextView loading = text("Загружаем переписки…", 14, false, muted);
+        TextView loading = text("Загружаем переписки…", 14, false, 0xff89839a);
         loading.setPadding(4, 18, 4, 18);
         chatList.addView(loading);
         request("GET", "chats", null, true, (data, error) -> {
@@ -389,15 +389,16 @@ public class MainActivity extends Activity {
                 LinearLayout empty = new LinearLayout(this);
                 empty.setOrientation(LinearLayout.VERTICAL);
                 empty.setGravity(Gravity.CENTER);
-                empty.setPadding(18, 24, 18, 24);
-                empty.setBackground(shape(panel, 20));
-                TextView icon = text("✉", 32, true, accent);
+                empty.setPadding(18, 25, 18, 25);
+                empty.setBackground(shape(0xfff4f1fa, 22));
+                TextView icon = text("✉", 34, true, 0xff735bc3);
                 icon.setGravity(Gravity.CENTER);
                 empty.addView(icon);
-                TextView label = text("Пока тихо", 18, true, white);
+                TextView label = text("Здесь будет твоя история", 17, true, 0xff29243a);
                 label.setGravity(Gravity.CENTER);
+                label.setPadding(0, 8, 0, 4);
                 empty.addView(label);
-                TextView hint = text("Найди человека и начни первый разговор.", 13, false, muted);
+                TextView hint = text("Найди человека и начни первый разговор.", 13, false, 0xff817b91);
                 hint.setGravity(Gravity.CENTER);
                 empty.addView(hint);
                 empty.setOnClickListener(v -> showPage("search"));
@@ -406,25 +407,27 @@ public class MainActivity extends Activity {
                 for (JSONObject chat : chats) {
                     String id = chat.optString("id", chat.optString("chat_id", ""));
                     String name = chat.optString("title", chat.optString("name", "Чат"));
-                    String preview = chat.optString("last_message", "Нажми, чтобы открыть переписку");
+                    String preview = chat.optString("last_message", "Открыть переписку");
                     LinearLayout item = row();
-                    item.setPadding(14, 12, 14, 12);
-                    item.setBackground(shape(panel, 18));
+                    item.setPadding(12, 13, 12, 13);
+                    item.setBackground(shape(Color.WHITE, 19));
                     LinearLayout.LayoutParams itemParams = new LinearLayout.LayoutParams(-1, -2);
                     itemParams.setMargins(0, 4, 0, 4);
-                    TextView avatar = text(name.isEmpty() ? "П" : name.substring(0, 1).toUpperCase(), 19, true, white);
+                    TextView avatar = text(name.isEmpty() ? "П" : name.substring(0, 1).toUpperCase(), 19, true, 0xff654db3);
                     avatar.setGravity(Gravity.CENTER);
-                    avatar.setBackground(shape(0xff6252a8, 28));
-                    item.addView(avatar, new LinearLayout.LayoutParams(48, 48));
+                    avatar.setBackground(shape(0xffeee9ff, 30));
+                    item.addView(avatar, new LinearLayout.LayoutParams(50, 50));
                     LinearLayout details = new LinearLayout(this);
                     details.setOrientation(LinearLayout.VERTICAL);
-                    details.setPadding(12, 0, 0, 0);
-                    details.addView(text(name, 15, true, white));
-                    TextView previewText = text(preview, 12, false, muted);
+                    details.setPadding(13, 0, 0, 0);
+                    details.addView(text(name, 15, true, 0xff272236));
+                    TextView previewText = text(preview, 12, false, 0xff858096);
                     previewText.setMaxLines(1);
                     previewText.setEllipsize(android.text.TextUtils.TruncateAt.END);
                     details.addView(previewText);
                     item.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
+                    TextView arrow = text("›", 26, false, 0xffa09aae);
+                    item.addView(arrow);
                     item.setOnClickListener(v -> {
                         currentChatId = id;
                         currentChatTitle = name;
