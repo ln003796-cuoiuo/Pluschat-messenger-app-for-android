@@ -95,7 +95,7 @@ public class MainActivity extends Activity {
             phoneField = input("Номер телефона с кодом страны", false); body.addView(phoneField);
             body.addView(button("Отправить SMS-код", () -> {
                 String phone = value(phoneField); if (phone.isEmpty()) { message("Введи номер телефона."); return; }
-                request("POST", "auth/registration/start", ApiClient.json("phone", phone), false, data -> {
+                request("POST", "auth/registration/start", ApiClient.json("phone", phone), false, (data,error)-> {
                     phoneChallenge = data.optString("challenge_id", "");
                     if (phoneChallenge.isEmpty()) { message("Сервер не вернул challenge_id."); return; }
                     registrationStage = "phone_code"; showPage("register");
@@ -104,7 +104,7 @@ public class MainActivity extends Activity {
         } else if (registrationStage.equals("phone_code")) {
             subtitle("2 из 3 · Подтверждение номера");
             codeField = input("Код из SMS", false); body.addView(codeField);
-            body.addView(button("Подтвердить номер", () -> request("POST", "auth/registration/verify-phone", ApiClient.json("challenge_id", phoneChallenge, "code", value(codeField)), false, data -> {
+            body.addView(button("Подтвердить номер", () -> request("POST", "auth/registration/verify-phone", ApiClient.json("challenge_id", phoneChallenge, "code", value(codeField)), false, (data,error)-> {
                 registrationStage = "email"; showPage("register");
             })));
             body.addView(button("Назад", () -> { registrationStage = "phone"; showPage("register"); }));
@@ -113,7 +113,7 @@ public class MainActivity extends Activity {
             emailField = input("Электронная почта", false); body.addView(emailField);
             body.addView(button("Отправить код на почту", () -> {
                 String email = value(emailField); if (email.isEmpty()) { message("Введи email."); return; }
-                request("POST", "auth/registration/email/start", ApiClient.json("challenge_id", phoneChallenge, "email", email), false, data -> {
+                request("POST", "auth/registration/email/start", ApiClient.json("challenge_id", phoneChallenge, "email", email), false, (data,error)-> {
                     emailChallenge = data.optString("challenge_id", phoneChallenge);
                     registrationStage = "email_code"; showPage("register");
                 });
@@ -121,7 +121,7 @@ public class MainActivity extends Activity {
         } else if (registrationStage.equals("email_code")) {
             subtitle("Введи код из письма.");
             emailCodeField = input("Код из email", false); body.addView(emailCodeField);
-            body.addView(button("Подтвердить почту", () -> request("POST", "auth/registration/email/verify", ApiClient.json("challenge_id", emailChallenge, "code", value(emailCodeField)), false, data -> {
+            body.addView(button("Подтвердить почту", () -> request("POST", "auth/registration/email/verify", ApiClient.json("challenge_id", emailChallenge, "code", value(emailCodeField)), false, (data,error)-> {
                 registrationStage = "profile"; showPage("register");
             })));
         } else {
@@ -146,7 +146,7 @@ public class MainActivity extends Activity {
         JSONObject payload=ApiClient.json("challenge_id", phoneChallenge, "email_challenge_id", emailChallenge,
             "email", emailField == null ? "" : value(emailField), "password", pw, "first_name", fn, "last_name", ln,
             "username", un.replaceFirst("^@", ""), "bio", value(bioField), "birth_date", value(birthField), "education", value(educationField));
-        request("POST", "auth/registration/complete", payload, false, data -> {
+        request("POST", "auth/registration/complete", payload, false, (data,error)-> {
             if (!saveSession(data)) return;
             if (selectedAvatar != null) {
                 ApiClient.uploadFile(this, selectedAvatar, "me/avatar", SessionStore.token(this), (upload, error) -> {
@@ -159,7 +159,7 @@ public class MainActivity extends Activity {
     private void login() {
         String id=value(identifierField), pw=value(loginPasswordField);
         if(id.isEmpty()||pw.isEmpty()){message("Введи телефон/email и пароль.");return;}
-        request("POST","auth/login",ApiClient.json("identifier",id,"password",pw),false,data->{
+        request("POST","auth/login",ApiClient.json("identifier",id,"password",pw),false,(data,error)->{
             if(data.optBoolean("requires_2fa",false)){ pending2fa=data.optString("challenge_id",""); showPage("twofa"); return; }
             if(saveSession(data)) showPage("home");
         });
@@ -168,7 +168,7 @@ public class MainActivity extends Activity {
     private void twoFactorScreen() {
         title("Дополнительная защита"); subtitle("Введи одноразовый код второго фактора.");
         EditText code=input("Код 2FA",false); body.addView(code);
-        body.addView(button("Подтвердить и войти",()->request("POST","auth/2fa/verify",ApiClient.json("challenge_id",pending2fa,"code",value(code)),false,data->{if(saveSession(data))showPage("home");})));
+        body.addView(button("Подтвердить и войти",()->request("POST","auth/2fa/verify",ApiClient.json("challenge_id",pending2fa,"code",value(code)),false,(data,error)->{if(saveSession(data))showPage("home");})));
     }
     private boolean saveSession(JSONObject data) {
         String access=data.optString("access_token",""), refresh=data.optString("refresh_token","");
@@ -184,7 +184,7 @@ public class MainActivity extends Activity {
         body.addView(secretView);
         EditText code=input("Одноразовый код из приложения",false); body.addView(code);
         final String[] setupId={""};
-        body.addView(button("Настроить 2FA",()->request("POST","auth/2fa/setup",new JSONObject(),true,data->{
+        body.addView(button("Настроить 2FA",()->request("POST","auth/2fa/setup",new JSONObject(),true,(data,error)->{
             setupId[0]=data.optString("setup_id","");
             String secret=data.optString("secret","");
             String url=data.optString("otpauth_url","");
@@ -192,11 +192,11 @@ public class MainActivity extends Activity {
         })));
         body.addView(button("Подтвердить и включить",()->{
             if(setupId[0].isEmpty()){message("Сначала нажми «Настроить 2FA».");return;}
-            request("POST","auth/2fa/confirm",ApiClient.json("setup_id",setupId[0],"code",value(code)),true,data->{
+            request("POST","auth/2fa/confirm",ApiClient.json("setup_id",setupId[0],"code",value(code)),true,(data,error)->{
                 message("Двухэтапная аутентификация включена.");showPage("settings");
             });
         }));
-        body.addView(button("Отключить 2FA",()->request("POST","auth/2fa/disable",new JSONObject(),true,data->{message("2FA отключена.");showPage("settings");})));
+        body.addView(button("Отключить 2FA",()->request("POST","auth/2fa/disable",new JSONObject(),true,(data,error)->{message("2FA отключена.");showPage("settings");})));
         body.addView(button("Назад",()->showPage("settings")));
     }
 
@@ -217,7 +217,7 @@ public class MainActivity extends Activity {
         loadChats();
     }
     private void loadChats() {
-        request("GET","chats",null,true,data->{
+        request("GET","chats",null,true,(data,error)->{
             chats.clear(); JSONArray arr=data.optJSONArray("chats");
             if(arr==null) arr=data.optJSONArray("data");
             if(arr!=null) for(int i=0;i<arr.length();i++){JSONObject c=arr.optJSONObject(i);if(c!=null)chats.add(c);}
@@ -240,7 +240,7 @@ public class MainActivity extends Activity {
         body.addView(button("Отправить",()->{
             String msg=value(messageField);if(msg.trim().isEmpty())return;
             String clientId=java.util.UUID.randomUUID().toString();
-            request("POST","chats/"+currentChatId+"/messages",ApiClient.json("client_message_id",clientId,"type","text","body",msg),true,data->{messageField.setText("");refreshChatHistory(history);});
+            request("POST","chats/"+currentChatId+"/messages",ApiClient.json("client_message_id",clientId,"type","text","body",msg),true,(data,error)->{messageField.setText("");refreshChatHistory(history);});
         }));
         refreshChatHistory(history);
         chatPoll = new Runnable() {
@@ -254,7 +254,7 @@ public class MainActivity extends Activity {
     }
     private void refreshChatHistory(TextView history) {
         if (currentChatId.isEmpty()) { history.setText("Открой чат из списка."); return; }
-        request("GET","chats/"+currentChatId+"/messages?limit=50",null,true,data->{
+        request("GET","chats/"+currentChatId+"/messages?limit=50",null,true,(data,error)->{
             JSONArray arr=data.optJSONArray("messages");if(arr==null)arr=data.optJSONArray("data");
             StringBuilder out=new StringBuilder();
             if(arr!=null)for(int i=0;i<arr.length();i++){JSONObject m=arr.optJSONObject(i);if(m!=null)out.append(m.optString("sender_name","")).append(": ").append(m.optString("body","")).append("\\n");}
@@ -267,12 +267,12 @@ public class MainActivity extends Activity {
         LinearLayout results=new LinearLayout(this);results.setOrientation(LinearLayout.VERTICAL);body.addView(results);
         body.addView(button("Поиск",()->{
             results.removeAllViews();String query=value(q);
-            request("GET","users/search?q="+android.net.Uri.encode(query),null,true,data->{
+            request("GET","users/search?q="+android.net.Uri.encode(query),null,true,(data,error)->{
                 JSONArray arr=data.optJSONArray("users");if(arr==null)arr=data.optJSONArray("data");
                 if(arr==null||arr.length()==0){results.addView(text("Пользователи не найдены или API ещё не подключён.",14,false,muted));return;}
                 for(int i=0;i<arr.length();i++){JSONObject u=arr.optJSONObject(i);if(u==null)continue;
                     String uid=u.optString("id"), name=u.optString("first_name","")+" "+u.optString("last_name",""), uname=u.optString("username","");
-                    results.addView(button(name+"  @"+uname,()->request("POST","chats",ApiClient.json("type","direct","user_id",uid),true,c->{currentChatId=c.optString("id",c.optString("chat_id",""));currentChatTitle=name;showPage("chat");})));
+                    results.addView(button(name+"  @"+uname,()->request("POST","chats",ApiClient.json("type","direct","user_id",uid),true,(c,error)->{currentChatId=c.optString("id",c.optString("chat_id",""));currentChatTitle=name;showPage("chat");})));
                 }
             });
         }));
@@ -282,13 +282,13 @@ public class MainActivity extends Activity {
     private void contactsScreen() {
         title("Контакты"); subtitle("Люди, с которыми ты можешь быстро начать переписку.");
         LinearLayout results=new LinearLayout(this);results.setOrientation(LinearLayout.VERTICAL);body.addView(results);
-        request("GET","contacts",null,true,data->{
+        request("GET","contacts",null,true,(data,error)->{
             JSONArray arr=data.optJSONArray("contacts");if(arr==null)arr=data.optJSONArray("data");
             if(arr==null||arr.length()==0){results.addView(text("Контактов пока нет. Найди пользователя по username.",14,false,muted));return;}
             for(int i=0;i<arr.length();i++){JSONObject u=arr.optJSONObject(i);if(u==null)continue;
                 String id=u.optString("id",u.optString("user_id",""));
                 String name=u.optString("first_name","")+" "+u.optString("last_name","")+"  @"+u.optString("username","");
-                results.addView(button(name,()->request("POST","chats",ApiClient.json("type","direct","user_id",id),true,ch->{currentChatId=ch.optString("id",ch.optString("chat_id",""));currentChatTitle=name;showPage("chat");})));
+                results.addView(button(name,()->request("POST","chats",ApiClient.json("type","direct","user_id",id),true,(ch,error)->{currentChatId=ch.optString("id",ch.optString("chat_id",""));currentChatTitle=name;showPage("chat");})));
             }
         });
         body.addView(button("Найти пользователя",()->showPage("search")));
@@ -297,14 +297,14 @@ public class MainActivity extends Activity {
     private void notificationsScreen() {
         title("Уведомления"); subtitle("Новые сообщения, упоминания и события сообществ.");
         LinearLayout results=new LinearLayout(this);results.setOrientation(LinearLayout.VERTICAL);body.addView(results);
-        request("GET","notifications",null,true,data->{
+        request("GET","notifications",null,true,(data,error)->{
             JSONArray arr=data.optJSONArray("notifications");if(arr==null)arr=data.optJSONArray("data");
             if(arr==null||arr.length()==0){results.addView(text("Новых уведомлений нет.",14,false,muted));return;}
             for(int i=0;i<arr.length();i++){JSONObject n=arr.optJSONObject(i);if(n==null)continue;
                 String id=n.optString("id","");String title=n.optString("title",n.optString("body","Уведомление"));
-                results.addView(button(title,()->request("POST","notifications/"+id+"/read",new JSONObject(),true,d->message("Отмечено как прочитанное."))));
+                results.addView(button(title,()->request("POST","notifications/"+id+"/read",new JSONObject(),true,(d,error)->message("Отмечено как прочитанное."))));
             }
-            body.addView(button("Отметить все прочитанным",()->request("POST","notifications/read-all",new JSONObject(),true,d->message("Готово."))));
+            body.addView(button("Отметить все прочитанным",()->request("POST","notifications/read-all",new JSONObject(),true,(d,error)->message("Готово."))));
         });
         body.addView(button("Назад",()->showPage("home")));
     }
@@ -316,8 +316,8 @@ public class MainActivity extends Activity {
         if (selectedAvatar != null) subtitle("Выбран файл аватарки.");
         body.addView(button("Загрузить выбранную аватарку", () -> { if (selectedAvatar == null) { message("Сначала выбери изображение."); return; } ApiClient.uploadFile(this, selectedAvatar, "me/avatar", SessionStore.token(this), (data,error) -> { if(error!=null)message(error);else message("Аватар обновлён."); }); }));
         body.addView(name);body.addView(surname);body.addView(username);body.addView(bio);body.addView(birth);body.addView(edu);
-        request("GET","me",null,true,data->{JSONObject u=data.optJSONObject("user");if(u==null)u=data;name.setText(u.optString("first_name",""));surname.setText(u.optString("last_name",""));username.setText(u.optString("username",""));bio.setText(u.optString("bio",""));birth.setText(u.optString("birth_date",""));edu.setText(u.optString("education",""));});
-        body.addView(button("Сохранить профиль",()->request("PATCH","me",ApiClient.json("first_name",value(name),"last_name",value(surname),"username",value(username).replaceFirst("^@",""),"bio",value(bio),"birth_date",value(birth),"education",value(edu)),true,data->message("Профиль сохранён."))));
+        request("GET","me",null,true,(data,error)->{JSONObject u=data.optJSONObject("user");if(u==null)u=data;name.setText(u.optString("first_name",""));surname.setText(u.optString("last_name",""));username.setText(u.optString("username",""));bio.setText(u.optString("bio",""));birth.setText(u.optString("birth_date",""));edu.setText(u.optString("education",""));});
+        body.addView(button("Сохранить профиль",()->request("PATCH","me",ApiClient.json("first_name",value(name),"last_name",value(surname),"username",value(username).replaceFirst("^@",""),"bio",value(bio),"birth_date",value(birth),"education",value(edu)),true,(data,error)->message("Профиль сохранён."))));
         body.addView(button("Назад",()->showPage("home")));
     }
     private void settingsScreen() {
