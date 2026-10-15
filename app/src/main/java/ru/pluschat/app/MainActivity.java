@@ -93,6 +93,7 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(lightMode ? Color.WHITE : 0xff0b0d12);
         getWindow().setNavigationBarColor(lightMode ? Color.WHITE : 0xff0b0d12);
         if (android.os.Build.VERSION.SDK_INT >= 23) getWindow().getDecorView().setSystemUiVisibility(lightMode ? View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR : 0);
+        boolean authFlow = target.equals("auth") || target.equals("register") || target.equals("twofa");
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
@@ -111,7 +112,7 @@ public class MainActivity extends Activity {
         brandText.addView(brand);
         brandText.addView(tagline);
         header.addView(brandText, new LinearLayout.LayoutParams(0, -2, 1));
-        root.addView(header, new LinearLayout.LayoutParams(-1, dp(72)));
+        if (!authFlow) root.addView(header, new LinearLayout.LayoutParams(-1, dp(72)));
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
         body = column();
@@ -174,18 +175,24 @@ public class MainActivity extends Activity {
     private void title(String s) { TextView t=text(s, 25, true, lightMode ? Color.BLACK : white); t.setPadding(0, 5, 0, 5); body.addView(t); }
     private void subtitle(String s) { TextView t = text(s, 14, false, muted); t.setPadding(0, 4, 0, 12); body.addView(t); }
     private void authScreen() {
-        title("С возвращением"); subtitle("Войди по номеру телефона или электронной почте.");
-        identifierField = input("Телефон или email", false); body.addView(identifierField);
-        loginPasswordField = input("Пароль", true); body.addView(loginPasswordField);
+        title("Войти"); subtitle("Продолжите общение с близкими");
+        TextView emailLabel = text("Электронная почта или телефон", 12, true, muted);
+        LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(-1, -2); labelParams.setMargins(0, dp(28), 0, dp(2)); body.addView(emailLabel, labelParams);
+        identifierField = input("name@example.com", false); body.addView(identifierField);
+        TextView passwordLabel = text("Пароль", 12, true, muted);
+        LinearLayout.LayoutParams passwordLabelParams = new LinearLayout.LayoutParams(-1, -2); passwordLabelParams.setMargins(0, dp(10), 0, dp(2)); body.addView(passwordLabel, passwordLabelParams);
+        loginPasswordField = input("Введите пароль", true); body.addView(loginPasswordField);
+        TextView forgot = text("Забыли пароль?", 12, true, 0xffb7adff); forgot.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        forgot.setPadding(0, dp(6), 0, dp(12)); forgot.setOnClickListener(v -> message("Восстановление пароля будет доступно после подключения серверного API.")); body.addView(forgot);
         body.addView(button("Войти", this::login));
-        body.addView(button("Создать аккаунт", () -> { registrationStage = "email"; showPage("register"); }));
-        body.addView(button("Не получается войти?", () -> message("Восстановление пароля будет доступно после подключения серверного API.")));
-        subtitle("Шлюз: " + BuildConfig.API_BASE_URL);
+        TextView divider = text("или продолжить с", 12, false, muted); divider.setGravity(Gravity.CENTER); divider.setPadding(0, dp(16), 0, dp(8)); body.addView(divider);
+        body.addView(button("✉   Получить код на почту", () -> message("Вход по одноразовому коду будет подключён вместе с серверным API.")));
+        TextView signup = text("Нет аккаунта?  Создать", 13, true, 0xffb7adff); signup.setGravity(Gravity.CENTER); signup.setPadding(0, dp(22), 0, dp(12)); signup.setOnClickListener(v -> { registrationStage = "email"; showPage("register"); }); body.addView(signup);
     }
     private void registerScreen() {
-        title("Создание аккаунта");
+        title("Регистрация");
         if (registrationStage.equals("email")) {
-            subtitle("Шаг 1 из 3 · Подтверждение электронной почты");
+            subtitle("Это займёт всего пару минут");
             emailField = input("Электронная почта", false); body.addView(emailField);
             body.addView(button("Отправить код на почту", () -> {
                 String email = value(emailField);
