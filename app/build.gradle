@@ -20,3 +20,11 @@ dependencies {
     implementation 'com.google.android.material:material:1.12.0'
     implementation 'androidx.security:security-crypto:1.1.0-alpha06'
 }
+
+// Copy the project-root logo into Android resources before resource processing.
+def copyPlusChatLogo = tasks.register('copyPlusChatLogo', Copy) {
+    from(rootProject.file('8e0e5186-48e8-4af2-8acf-3e8c1439c2b5.jpeg'))
+    into(layout.projectDirectory.dir('src/main/res/drawable-nodpi'))
+    rename { 'pluschat_logo.jpeg' }
+}
+tasks.named('preBuild').configure { dependsOn(copyPlusChatLogo) }
