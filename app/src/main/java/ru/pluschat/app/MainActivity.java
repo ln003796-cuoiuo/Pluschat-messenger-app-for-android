@@ -17,7 +17,7 @@ import java.util.ArrayList;
 
 public class MainActivity extends Activity {
     private final int bg = Color.rgb(10, 12, 20), panel = Color.rgb(25, 29, 43), white = Color.rgb(246, 247, 255), muted = Color.rgb(157, 166, 190), accent = Color.rgb(170, 153, 255);
-    private LinearLayout root, body;
+    private LinearLayout root, body, chatList;
     private String page = "auth", registrationStage = "phone", phoneChallenge = "", emailChallenge = "", currentChatId = "", currentChatTitle = "";
     private EditText phoneField, codeField, emailField, emailCodeField, firstNameField, lastNameField, usernameField, passwordField, bioField, birthField, educationField, identifierField, loginPasswordField, messageField, searchField;
     private ArrayList<JSONObject> chats = new ArrayList<>();
@@ -56,6 +56,29 @@ public class MainActivity extends Activity {
         Button b = new Button(this); b.setText(label); b.setTextColor(bg); b.setAllCaps(false); b.setTextSize(14); b.setBackground(shape(accent, 18));
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, 52); p.setMargins(0, 6, 0, 6); b.setLayoutParams(p);
         b.setOnClickListener(v -> action.run()); return b;
+    }
+    private Button tile(String symbol, String label, String detail, Runnable action) {
+        Button b = new Button(this);
+        b.setAllCaps(false);
+        b.setGravity(Gravity.CENTER_VERTICAL | Gravity.LEFT);
+        b.setText(symbol + "   " + label + "\\n" + "       " + detail);
+        b.setTextColor(white);
+        b.setTextSize(14);
+        b.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        b.setPadding(16, 12, 16, 12);
+        b.setMinHeight(76);
+        b.setBackground(shape(panel, 20));
+        b.setOnClickListener(v -> action.run());
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, -2, 1);
+        p.setMargins(4, 5, 4, 5);
+        b.setLayoutParams(p);
+        return b;
+    }
+    private void addSection(String value) {
+        TextView label = text(value, 17, true, lightMode ? Color.BLACK : white);
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
+        p.setMargins(0, 18, 0, 8);
+        body.addView(label, p);
     }
     private void showPage(String target) {
         if (chatPoll != null) { chatHandler.removeCallbacks(chatPoll); chatPoll = null; }
@@ -219,37 +242,112 @@ public class MainActivity extends Activity {
     }
 
     private void homeScreen() {
-        LinearLayout nav=row();
-        body.addView(text("Твои чаты",25,true,lightMode?Color.BLACK:white));
-        subtitle("Личные сообщения, группы и каналы будут загружаться с сервера.");
-        searchField=input("Поиск людей и чатов",false); body.addView(searchField);
-        body.addView(button("Найти пользователя",()->showPage("search")));
-        body.addView(button("Группы",()->openCommunity(false)));
-        body.addView(button("Каналы",()->openCommunity(true)));
-        body.addView(button("Контакты",()->showPage("contacts")));
-        body.addView(button("Уведомления",()->showPage("notifications")));
-        body.addView(button("Обновить чаты",this::loadChats));
-        body.addView(button("Профиль",()->showPage("profile")));
-        body.addView(button("Настройки",()->showPage("settings")));
-        body.addView(button("Выйти",this::logout));
+        TextView greeting = text("Привет! 👋", 27, true, lightMode ? Color.BLACK : white);
+        body.addView(greeting);
+        subtitle("Здесь начинается твое общение.");
+        searchField = input("⌕  Поиск людей и чатов", false);
+        body.addView(searchField);
+        body.addView(button("Найти человека", () -> showPage("search")));
+
+        addSection("Быстрый доступ");
+        LinearLayout firstRow = row();
+        firstRow.addView(tile("👥", "Группы", "Общение вместе", () -> openCommunity(false)));
+        firstRow.addView(tile("◉", "Каналы", "Новости и посты", () -> openCommunity(true)));
+        body.addView(firstRow);
+        LinearLayout secondRow = row();
+        secondRow.addView(tile("✉", "Контакты", "Твои знакомые", () -> showPage("contacts")));
+        secondRow.addView(tile("♧", "Уведомления", "Важные события", () -> showPage("notifications")));
+        body.addView(secondRow);
+
+        LinearLayout sectionRow = row();
+        TextView chatsTitle = text("Последние чаты", 20, true, lightMode ? Color.BLACK : white);
+        sectionRow.addView(chatsTitle, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView refresh = text("↻ Обновить", 13, true, accent);
+        refresh.setPadding(8, 10, 0, 10);
+        refresh.setOnClickListener(v -> loadChats());
+        sectionRow.addView(refresh);
+        LinearLayout.LayoutParams sectionParams = new LinearLayout.LayoutParams(-1, -2);
+        sectionParams.setMargins(0, 20, 0, 8);
+        body.addView(sectionRow, sectionParams);
+
+        chatList = new LinearLayout(this);
+        chatList.setOrientation(LinearLayout.VERTICAL);
+        body.addView(chatList, new LinearLayout.LayoutParams(-1, -2));
+
+        LinearLayout bottom = row();
+        bottom.addView(tile("☺", "Профиль", "Настроить аккаунт", () -> showPage("profile")));
+        bottom.addView(tile("⚙", "Настройки", "Приватность и защита", () -> showPage("settings")));
+        body.addView(bottom);
+        body.addView(button("Выйти из аккаунта", this::logout));
         loadChats();
     }
     private void loadChats() {
-        request("GET","chats",null,true,(data,error)->{
-            chats.clear(); JSONArray arr=data.optJSONArray("chats");
-            if(arr==null) arr=data.optJSONArray("data");
-            if(arr!=null) for(int i=0;i<arr.length();i++){JSONObject c=arr.optJSONObject(i);if(c!=null)chats.add(c);}
-            // Remove only chat rows, keep navigation controls.
-            for(int i=body.getChildCount()-1;i>=0;i--){View v=body.getChildAt(i);Object tag=v.getTag();if("chat_row".equals(tag))body.removeViewAt(i);}
-            if(chats.isEmpty()){TextView empty=text("Пока нет переписок. Найди пользователя, чтобы начать чат.",15,false,muted);empty.setPadding(0,16,0,16);empty.setTag("chat_row");body.addView(empty,2);}
-            else {
-                int insert=2;
-                for(JSONObject c:chats){String id=c.optString("id",c.optString("chat_id",""));String name=c.optString("title",c.optString("name","Чат"));
-                    Button b=button("◉  "+name+"    "+c.optString("last_message",""),()->{currentChatId=id;currentChatTitle=name;showPage("chat");});
-                    b.setTag("chat_row");body.addView(b,insert++);}
+        if (chatList == null || !"home".equals(page)) return;
+        chatList.removeAllViews();
+        TextView loading = text("Загружаем переписки…", 14, false, muted);
+        loading.setPadding(4, 18, 4, 18);
+        chatList.addView(loading);
+        request("GET", "chats", null, true, (data, error) -> {
+            if (!"home".equals(page) || chatList == null) return;
+            chats.clear();
+            JSONArray arr = data.optJSONArray("chats");
+            if (arr == null) arr = data.optJSONArray("data");
+            if (arr != null) for (int i = 0; i < arr.length(); i++) {
+                JSONObject chat = arr.optJSONObject(i);
+                if (chat != null) chats.add(chat);
+            }
+            chatList.removeAllViews();
+            if (chats.isEmpty()) {
+                LinearLayout empty = new LinearLayout(this);
+                empty.setOrientation(LinearLayout.VERTICAL);
+                empty.setGravity(Gravity.CENTER);
+                empty.setPadding(18, 24, 18, 24);
+                empty.setBackground(shape(panel, 20));
+                TextView icon = text("✉", 32, true, accent);
+                icon.setGravity(Gravity.CENTER);
+                empty.addView(icon);
+                TextView label = text("Пока тихо", 18, true, white);
+                label.setGravity(Gravity.CENTER);
+                empty.addView(label);
+                TextView hint = text("Найди человека и начни первый разговор.", 13, false, muted);
+                hint.setGravity(Gravity.CENTER);
+                empty.addView(hint);
+                empty.setOnClickListener(v -> showPage("search"));
+                chatList.addView(empty);
+            } else {
+                for (JSONObject chat : chats) {
+                    String id = chat.optString("id", chat.optString("chat_id", ""));
+                    String name = chat.optString("title", chat.optString("name", "Чат"));
+                    String preview = chat.optString("last_message", "Нажми, чтобы открыть переписку");
+                    LinearLayout item = row();
+                    item.setPadding(14, 12, 14, 12);
+                    item.setBackground(shape(panel, 18));
+                    LinearLayout.LayoutParams itemParams = new LinearLayout.LayoutParams(-1, -2);
+                    itemParams.setMargins(0, 4, 0, 4);
+                    TextView avatar = text(name.isEmpty() ? "П" : name.substring(0, 1).toUpperCase(), 19, true, white);
+                    avatar.setGravity(Gravity.CENTER);
+                    avatar.setBackground(shape(0xff6252a8, 28));
+                    item.addView(avatar, new LinearLayout.LayoutParams(48, 48));
+                    LinearLayout details = new LinearLayout(this);
+                    details.setOrientation(LinearLayout.VERTICAL);
+                    details.setPadding(12, 0, 0, 0);
+                    details.addView(text(name, 15, true, white));
+                    TextView previewText = text(preview, 12, false, muted);
+                    previewText.setMaxLines(1);
+                    previewText.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                    details.addView(previewText);
+                    item.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
+                    item.setOnClickListener(v -> {
+                        currentChatId = id;
+                        currentChatTitle = name;
+                        showPage("chat");
+                    });
+                    chatList.addView(item, itemParams);
+                }
             }
         });
     }
+
     private void chatScreen() {
         title(currentChatTitle.isEmpty()?"Переписка":currentChatTitle);
         body.addView(button("← К чатам",()->showPage("home")));
