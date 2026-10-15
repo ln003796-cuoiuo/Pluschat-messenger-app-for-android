@@ -167,6 +167,9 @@ public class MainActivity extends Activity {
         subtitle("Личные сообщения, группы и каналы будут загружаться с сервера.");
         searchField=input("Поиск людей и чатов",false); body.addView(searchField);
         body.addView(button("Найти пользователя",()->showPage("search")));
+        body.addView(button("Группы",()->message("Группы: подключение после реализации API groups.")));
+        body.addView(button("Каналы",()->message("Каналы: подключение после реализации API channels.")));
+        body.addView(button("Контакты",()->showPage("search")));
         body.addView(button("Обновить чаты",this::loadChats));
         body.addView(button("Профиль",()->showPage("profile")));
         body.addView(button("Настройки",()->showPage("settings")));
