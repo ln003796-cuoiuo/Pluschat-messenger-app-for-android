@@ -16,10 +16,10 @@ public class CommunityActivity extends Activity {
     @Override public void onCreate(Bundle state){super.onCreate(state);channel=getIntent().getBooleanExtra("channel",false);render();}
     private GradientDrawable shape(int c){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(18);return d;}
     private TextView label(String s,int size,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextColor(bold?white:muted);t.setTextSize(size);if(bold)t.setTypeface(null,android.graphics.Typeface.BOLD);return t;}
-    private Button button(String s,Runnable r){Button b=new Button(this);b.setText(s);b.setAllCaps(false);b.setTextColor(0xff2b2148);b.setBackground(shape(accent));b.setOnClickListener(v->r.run());return b;}
-    private EditText field(String hint){EditText e=new EditText(this);e.setHint(hint);e.setTextColor(white);e.setHintTextColor(muted);e.setTextSize(15);e.setPadding(14,10,14,10);e.setBackground(shape(panel));return e;}
+    private Button button(String s,Runnable r){Button b=new Button(this);b.setText(s);b.setAllCaps(false);b.setTextSize(16);b.setTypeface(null,android.graphics.Typeface.BOLD);b.setTextColor(0xff2b2148);b.setPadding(18,12,18,12);b.setMinHeight(60);b.setMinimumHeight(60);b.setBackground(shape(accent));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.setMargins(0,6,0,6);b.setLayoutParams(p);b.setOnClickListener(v->r.run());return b;}
+    private EditText field(String hint){EditText e=new EditText(this);e.setHint(hint);e.setTextColor(white);e.setHintTextColor(muted);e.setTextSize(16);e.setPadding(16,14,16,14);e.setMinHeight(60);e.setBackground(shape(0xfff0eef7));return e;}
     private void render(){
-        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(20,24,20,20);root.setBackgroundColor(bg);
+        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(20,24,20,24);root.setBackgroundColor(bg);
         TextView heading=label("Сообщества",25,true);root.addView(heading);
         root.addView(label("Места, где собираются твои люди",13,false));
         LinearLayout form=new LinearLayout(this);form.setOrientation(LinearLayout.VERTICAL);
@@ -27,7 +27,7 @@ public class CommunityActivity extends Activity {
         EditText description=field("Описание (необязательно)");
         EditText visibility=field("Тип: private или public");visibility.setText("private");
         form.addView(name);form.addView(description);form.addView(visibility);
-        form.setPadding(0,10,0,4);root.addView(form);
+        form.setPadding(0,14,0,8);root.addView(form);
         root.addView(button(channel?"＋  Создать канал":"＋  Создать группу",()->{
             if(name.getText().toString().trim().isEmpty()){Toast.makeText(this,"Укажи название",Toast.LENGTH_SHORT).show();return;}
             JSONObject payload=ApiClient.json("title",name.getText().toString().trim(),"description",description.getText().toString().trim(),"visibility",visibility.getText().toString().trim());
