@@ -16,7 +16,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 
 public class MainActivity extends Activity {
-    private final int bg = Color.rgb(9, 9, 11), panel = Color.rgb(23, 23, 26), white = Color.WHITE, muted = Color.rgb(165,165,172), accent = Color.rgb(205,205,212);
+    private final int bg = Color.rgb(10, 12, 20), panel = Color.rgb(25, 29, 43), white = Color.rgb(246, 247, 255), muted = Color.rgb(157, 166, 190), accent = Color.rgb(170, 153, 255);
     private LinearLayout root, body;
     private String page = "auth", registrationStage = "phone", phoneChallenge = "", emailChallenge = "", currentChatId = "", currentChatTitle = "";
     private EditText phoneField, codeField, emailField, emailCodeField, firstNameField, lastNameField, usernameField, passwordField, bioField, birthField, educationField, identifierField, loginPasswordField, messageField, searchField;
