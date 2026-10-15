@@ -21,7 +21,7 @@ public class MainActivity extends Activity {
     private String page = "auth", registrationStage = "phone", phoneChallenge = "", emailChallenge = "", currentChatId = "", currentChatTitle = "";
     private EditText phoneField, codeField, emailField, emailCodeField, firstNameField, lastNameField, usernameField, passwordField, bioField, birthField, educationField, identifierField, loginPasswordField, messageField, searchField;
     private ArrayList<JSONObject> chats = new ArrayList<>();
-    private boolean lightMode = false;
+    private boolean lightMode = true;
     private android.net.Uri selectedAvatar;
     private final Handler chatHandler = new Handler(Looper.getMainLooper());
     private Runnable chatPoll;
@@ -53,7 +53,11 @@ public class MainActivity extends Activity {
         return e;
     }
     private Button button(String label, Runnable action) {
-        Button b = new Button(this); b.setText(label); b.setTextColor(bg); b.setAllCaps(false); b.setTextSize(14); b.setBackground(shape(accent, 18));
+        Button b = new Button(this);
+        b.setText(label); b.setTextColor(0xff241b42); b.setAllCaps(false); b.setTextSize(15);
+        b.setTypeface(Typeface.DEFAULT, Typeface.BOLD); b.setGravity(Gravity.CENTER);
+        b.setPadding(18, 0, 18, 0); b.setMinHeight(0); b.setMinimumHeight(0);
+        b.setStateListAnimator(null); b.setElevation(0); b.setBackground(shape(0xffd9d0ff, 18));
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, 52); p.setMargins(0, 6, 0, 6); b.setLayoutParams(p);
         b.setOnClickListener(v -> action.run()); return b;
     }
@@ -242,44 +246,128 @@ public class MainActivity extends Activity {
     }
 
     private void homeScreen() {
-        TextView greeting = text("Привет! 👋", 27, true, lightMode ? Color.BLACK : white);
-        body.addView(greeting);
-        subtitle("Здесь начинается твое общение.");
-        searchField = input("⌕  Поиск людей и чатов", false);
-        body.addView(searchField);
-        body.addView(button("Найти человека", () -> showPage("search")));
+        body.setPadding(20, 18, 20, 24);
 
-        addSection("Быстрый доступ");
-        LinearLayout firstRow = row();
-        firstRow.addView(tile("👥", "Группы", "Общение вместе", () -> openCommunity(false)));
-        firstRow.addView(tile("◉", "Каналы", "Новости и посты", () -> openCommunity(true)));
-        body.addView(firstRow);
-        LinearLayout secondRow = row();
-        secondRow.addView(tile("✉", "Контакты", "Твои знакомые", () -> showPage("contacts")));
-        secondRow.addView(tile("♧", "Уведомления", "Важные события", () -> showPage("notifications")));
-        body.addView(secondRow);
+        LinearLayout welcome = new LinearLayout(this);
+        welcome.setOrientation(LinearLayout.VERTICAL);
+        welcome.setPadding(22, 22, 22, 22);
+        GradientDrawable welcomeBg = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                new int[]{0xff30245e, 0xff6751b8, 0xff927ce8});
+        welcomeBg.setCornerRadius(28);
+        welcome.setBackground(welcomeBg);
+        TextView eyebrow = text("ТВОЁ ПРОСТРАНСТВО", 11, true, 0xffd8ceff);
+        eyebrow.setLetterSpacing(0.12f);
+        welcome.addView(eyebrow);
+        TextView greeting = text("Общение ближе.", 27, true, Color.WHITE);
+        greeting.setPadding(0, 8, 0, 3);
+        welcome.addView(greeting);
+        TextView welcomeHint = text("Люди, чаты и сообщества — в одном месте.", 14, false, 0xffe7e1ff);
+        welcomeHint.setMaxLines(2);
+        welcome.addView(welcomeHint);
+        LinearLayout.LayoutParams welcomeParams = new LinearLayout.LayoutParams(-1, -2);
+        welcomeParams.setMargins(0, 0, 0, 18);
+        body.addView(welcome, welcomeParams);
+
+        LinearLayout searchRow = row();
+        searchRow.setPadding(15, 0, 14, 0);
+        searchRow.setBackground(shape(0xfff0eef7, 17));
+        TextView searchIcon = text("⌕", 25, false, 0xff766b91);
+        searchRow.addView(searchIcon);
+        searchField = new EditText(this);
+        searchField.setSingleLine(true);
+        searchField.setTextSize(15);
+        searchField.setHint("Поиск людей и переписок");
+        searchField.setHintTextColor(0xff89839a);
+        searchField.setTextColor(0xff242033);
+        searchField.setBackgroundColor(Color.TRANSPARENT);
+        searchField.setPadding(10, 0, 0, 0);
+        searchRow.addView(searchField, new LinearLayout.LayoutParams(0, 54, 1));
+        TextView go = text("→", 22, true, 0xff6550b2);
+        go.setGravity(Gravity.CENTER);
+        searchRow.addView(go, new LinearLayout.LayoutParams(34, 54));
+        searchRow.setOnClickListener(v -> showPage("search"));
+        go.setOnClickListener(v -> showPage("search"));
+        LinearLayout.LayoutParams searchParams = new LinearLayout.LayoutParams(-1, 54);
+        searchParams.setMargins(0, 0, 0, 24);
+        body.addView(searchRow, searchParams);
+
+        TextView quickTitle = text("Быстрый доступ", 20, true, 0xff211d30);
+        body.addView(quickTitle);
+        TextView quickSub = text("Всё нужное — в пару касаний", 13, false, 0xff888298);
+        quickSub.setPadding(0, 3, 0, 12);
+        body.addView(quickSub);
+
+        LinearLayout shortcuts = row();
+        shortcuts.setGravity(Gravity.TOP);
+        shortcuts.addView(homeShortcut("✦", "Группы", "Общие чаты", 0xffeee9ff, 0xff6349b5, () -> openCommunity(false)));
+        shortcuts.addView(homeShortcut("◉", "Каналы", "Новости", 0xffffecdf, 0xffb76a35, () -> openCommunity(true)));
+        shortcuts.addView(homeShortcut("♧", "Контакты", "Твои люди", 0xffdff5ec, 0xff278565, () -> showPage("contacts")));
+        shortcuts.addView(homeShortcut("♢", "События", "Оповещения", 0xffe4efff, 0xff3d70b8, () -> showPage("notifications")));
+        LinearLayout.LayoutParams shortcutsParams = new LinearLayout.LayoutParams(-1, -2);
+        shortcutsParams.setMargins(-4, 0, -4, 22);
+        body.addView(shortcuts, shortcutsParams);
 
         LinearLayout sectionRow = row();
-        TextView chatsTitle = text("Последние чаты", 20, true, lightMode ? Color.BLACK : white);
+        TextView chatsTitle = text("Сообщения", 22, true, 0xff211d30);
         sectionRow.addView(chatsTitle, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView refresh = text("↻ Обновить", 13, true, accent);
+        TextView refresh = text("Обновить  ↻", 13, true, 0xff6954b8);
         refresh.setPadding(8, 10, 0, 10);
         refresh.setOnClickListener(v -> loadChats());
         sectionRow.addView(refresh);
-        LinearLayout.LayoutParams sectionParams = new LinearLayout.LayoutParams(-1, -2);
-        sectionParams.setMargins(0, 20, 0, 8);
-        body.addView(sectionRow, sectionParams);
+        body.addView(sectionRow);
+        TextView chatHint = text("Твои последние разговоры", 13, false, 0xff888298);
+        chatHint.setPadding(0, 2, 0, 12);
+        body.addView(chatHint);
 
         chatList = new LinearLayout(this);
         chatList.setOrientation(LinearLayout.VERTICAL);
         body.addView(chatList, new LinearLayout.LayoutParams(-1, -2));
 
-        LinearLayout bottom = row();
-        bottom.addView(tile("☺", "Профиль", "Настроить аккаунт", () -> showPage("profile")));
-        bottom.addView(tile("⚙", "Настройки", "Приватность и защита", () -> showPage("settings")));
-        body.addView(bottom);
+        LinearLayout account = row();
+        account.setPadding(15, 12, 15, 12);
+        account.setBackground(shape(0xfff0eef7, 20));
+        TextView accountIcon = text("☺", 25, true, 0xff6550b2);
+        accountIcon.setGravity(Gravity.CENTER);
+        account.addView(accountIcon, new LinearLayout.LayoutParams(42, 42));
+        LinearLayout accountText = new LinearLayout(this);
+        accountText.setOrientation(LinearLayout.VERTICAL);
+        accountText.setPadding(12, 0, 0, 0);
+        accountText.addView(text("Твой аккаунт", 15, true, 0xff29243a));
+        accountText.addView(text("Профиль и настройки приватности", 12, false, 0xff817b91));
+        account.addView(accountText, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView arrow = text("›", 28, false, 0xff766b91);
+        account.addView(arrow);
+        account.setOnClickListener(v -> showPage("profile"));
+        LinearLayout.LayoutParams accountParams = new LinearLayout.LayoutParams(-1, -2);
+        accountParams.setMargins(0, 22, 0, 12);
+        body.addView(account, accountParams);
+        body.addView(button("Настройки", () -> showPage("settings")));
         body.addView(button("Выйти из аккаунта", this::logout));
         loadChats();
+    }
+
+    private View homeShortcut(String symbol, String title, String detail, int surface, int ink, Runnable action) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setGravity(Gravity.CENTER_HORIZONTAL);
+        card.setPadding(4, 12, 4, 12);
+        card.setBackground(shape(surface, 19));
+        TextView glyph = text(symbol, 24, true, ink);
+        glyph.setGravity(Gravity.CENTER);
+        card.addView(glyph, new LinearLayout.LayoutParams(-1, 31));
+        TextView name = text(title, 12, true, 0xff2d293b);
+        name.setGravity(Gravity.CENTER);
+        name.setPadding(0, 7, 0, 0);
+        card.addView(name);
+        TextView caption = text(detail, 10, false, 0xff777186);
+        caption.setGravity(Gravity.CENTER);
+        caption.setPadding(0, 2, 0, 0);
+        card.addView(caption);
+        card.setOnClickListener(v -> action.run());
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, -2, 1);
+        p.setMargins(4, 0, 4, 0);
+        card.setLayoutParams(p);
+        return card;
     }
     private void loadChats() {
         if (chatList == null || !"home".equals(page)) return;
