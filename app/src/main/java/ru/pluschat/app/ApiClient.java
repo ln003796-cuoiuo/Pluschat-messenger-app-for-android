@@ -84,10 +84,10 @@ public final class ApiClient {
                 try (OutputStream os = connection.getOutputStream();
                      java.io.InputStream in = context.getContentResolver().openInputStream(uri)) {
                     if (in == null) throw new java.io.IOException("Cannot read selected file");
-                    os.write(("--" + boundary + "\\r\\nContent-Disposition: form-data; name=\\"avatar\\"; filename=\\"avatar-upload\\"\\r\\nContent-Type: " + mime + "\\r\\n\\r\\n").getBytes(StandardCharsets.UTF_8));
+                    os.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"avatar\"; filename=\"avatar-upload\"\r\nContent-Type: " + mime + "\r\n\r\n").getBytes(StandardCharsets.UTF_8));
                     byte[] buffer = new byte[8192]; int n;
                     while ((n = in.read(buffer)) != -1) os.write(buffer, 0, n);
-                    os.write(("\\r\\n--" + boundary + "--\\r\\n").getBytes(StandardCharsets.UTF_8));
+                    os.write(("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
                 }
                 int code = connection.getResponseCode();
                 InputStream stream = code >= 200 && code < 400 ? connection.getInputStream() : connection.getErrorStream();
