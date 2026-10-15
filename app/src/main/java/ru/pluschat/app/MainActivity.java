@@ -130,7 +130,7 @@ public class MainActivity extends Activity {
             nav.addView(navItem("⌂", "Чаты", "home", target.equals("home") || target.equals("chat") || target.equals("search")));
             nav.addView(navItem("♙", "Контакты", "contacts", target.equals("contacts")));
             nav.addView(navItem("✦", "Сообщества", "communities", target.equals("communities")));
-            nav.addView(navItem("☺", "Профиль", "profile", target.equals("profile") || target.equals("settings") || target.equals("permissions") || target.startsWith("twofa_")));
+            nav.addView(navItem("☺", "Профиль", "profile", target.equals("profile") || target.equals("settings") || target.equals("permissions") || target.equals("privacy") || target.equals("appearance") || target.equals("chat_info") || target.startsWith("twofa_")));
             root.addView(nav, new LinearLayout.LayoutParams(-1, 76));
         }
         setContentView(root);
@@ -143,6 +143,9 @@ public class MainActivity extends Activity {
         else if (target.equals("notifications")) notificationsScreen();
         else if (target.equals("profile")) profileScreen();
         else if (target.equals("settings")) settingsScreen();
+        else if (target.equals("privacy")) privacyScreen();
+        else if (target.equals("appearance")) appearanceScreen();
+        else if (target.equals("chat_info")) chatInfoScreen();
         else if (target.equals("twofa")) twoFactorScreen();
         else if (target.equals("twofa_setup")) twoFactorSetupScreen();
         else if (target.equals("permissions")) permissionsScreen();
@@ -463,6 +466,7 @@ public class MainActivity extends Activity {
     private void chatScreen() {
         title(currentChatTitle.isEmpty()?"Переписка":currentChatTitle);
         body.addView(button("← К чатам",()->showPage("home")));
+        body.addView(button("Информация о чате  ›",()->showPage("chat_info")));
         LinearLayout history = new LinearLayout(this);
         history.setOrientation(LinearLayout.VERTICAL);
         history.setPadding(0, 10, 0, 10);
@@ -581,12 +585,97 @@ public class MainActivity extends Activity {
         body.addView(button("Назад",()->showPage("home")));
     }
     private void settingsScreen() {
-        title("Настройки");subtitle("Аккаунт · безопасность · приватность · оформление");
-        body.addView(button(lightMode?"Включить тёмную тему":"Включить светлую тему",()->{lightMode=!lightMode;showPage("settings");}));
-        body.addView(button("Настроить двухэтапную аутентификацию",()->showPage("twofa_setup")));
-        body.addView(button("Активные устройства",()->message("Управление сессиями появится после подключения API устройств.")));
-        body.addView(button("Разрешения Android",()->showPage("permissions")));
-        body.addView(button("Назад",()->showPage("home")));
+        title("Настройки");
+        subtitle("Аккаунт · безопасность · приватность · оформление");
+        LinearLayout account = row();
+        account.setPadding(14, 14, 14, 14);
+        account.setBackground(shape(0xff171b24, 18));
+        TextView avatar = text("К", 23, true, 0xffe2dcff);
+        avatar.setGravity(Gravity.CENTER);
+        avatar.setBackground(shape(0xff292443, 40));
+        account.addView(avatar, new LinearLayout.LayoutParams(48, 48));
+        LinearLayout info = new LinearLayout(this);
+        info.setOrientation(LinearLayout.VERTICAL);
+        info.setPadding(12, 0, 0, 0);
+        info.addView(text("Мой профиль", 15, true, white));
+        info.addView(text("@username · Управление аккаунтом", 11, false, muted));
+        account.addView(info, new LinearLayout.LayoutParams(0, -2, 1));
+        account.setOnClickListener(v -> showPage("profile"));
+        body.addView(account);
+        body.addView(button("Внешний вид  ›", () -> showPage("appearance")));
+        body.addView(button("Приватность и безопасность  ›", () -> showPage("privacy")));
+        body.addView(button("Уведомления", () -> showPage("notifications")));
+        body.addView(button("Настроить двухэтапную аутентификацию", () -> showPage("twofa_setup")));
+        body.addView(button("Активные устройства", () -> message("Управление сессиями появится после подключения API устройств.")));
+        body.addView(button("Разрешения Android", () -> showPage("permissions")));
+        body.addView(button("Выйти из аккаунта", this::logout));
+        body.addView(button("Назад", () -> showPage("home")));
+    }
+
+    private void appearanceScreen() {
+        title("Внешний вид");
+        subtitle("Подстрой Pluschat под себя.");
+        body.addView(text("ТЕМА", 11, true, muted));
+        body.addView(button(lightMode ? "Тёмная тема включена? Включить тёмную" : "Тёмная тема · включена", () -> {
+            lightMode = false; showPage("appearance");
+        }));
+        body.addView(button("Светлая тема", () -> {
+            lightMode = true; showPage("appearance");
+        }));
+        body.addView(text("АКЦЕНТ", 11, true, muted));
+        LinearLayout swatches = row();
+        int[] colors = {0xff6f5bea, 0xff5b9cff, 0xff36b995, 0xffe77aa5};
+        for (int color : colors) {
+            View dot = new View(this);
+            dot.setBackground(shape(color, 24));
+            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(42, 42);
+            p.setMargins(0, 10, 12, 16);
+            swatches.addView(dot, p);
+        }
+        body.addView(swatches);
+        body.addView(text("Размер текста", 14, true, white));
+        body.addView(text("Стандартный · оптимизирован для чтения на телефоне", 12, false, muted));
+        body.addView(button("Назад к настройкам", () -> showPage("settings")));
+    }
+
+    private void privacyScreen() {
+        title("Приватность и безопасность");
+        subtitle("Ты контролируешь видимость своего профиля.");
+        String[][] options = {
+            {"Номер телефона", "Никто"},
+            {"Дата рождения", "Только вы"},
+            {"Добавление в группы", "Мои контакты"},
+            {"Предпросмотр сообщений", "Скрывать содержимое"},
+            {"Активные устройства", "Управление сессиями"}
+        };
+        for (String[] option : options) {
+            LinearLayout item = new LinearLayout(this);
+            item.setOrientation(LinearLayout.VERTICAL);
+            item.setPadding(15, 13, 15, 13);
+            item.setBackground(shape(0xff131720, 15));
+            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
+            p.setMargins(0, 4, 0, 4);
+            item.addView(text(option[0], 14, true, white));
+            item.addView(text(option[1], 12, false, muted));
+            TextView chevron = text("›", 23, false, muted);
+            chevron.setGravity(Gravity.CENTER);
+            item.addView(chevron, new LinearLayout.LayoutParams(-1, 24));
+            item.setOnClickListener(v -> message("Настройка «" + option[0] + "» будет подключена к серверным правилам приватности."));
+            body.addView(item, p);
+        }
+        body.addView(button("Двухэтапная аутентификация", () -> showPage("twofa_setup")));
+        body.addView(button("Разрешения Android", () -> showPage("permissions")));
+        body.addView(button("Назад к настройкам", () -> showPage("settings")));
+    }
+
+    private void chatInfoScreen() {
+        title(currentChatTitle.isEmpty() ? "Информация о чате" : currentChatTitle);
+        subtitle("Настройки и материалы переписки");
+        body.addView(button("Медиа и файлы", () -> message("Раздел медиа появится после подключения загрузок файлов.")));
+        body.addView(button("Поиск в переписке", () -> showPage("search")));
+        body.addView(button("Уведомления", () -> message("Настройки уведомлений чата появятся отдельно.")));
+        body.addView(button("Очистить историю", () -> message("История на сервере не изменена.")));
+        body.addView(button("Назад в переписку", () -> showPage("chat")));
     }
 
     private void permissionsScreen() {
