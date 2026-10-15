@@ -351,7 +351,10 @@ public class MainActivity extends Activity {
     private void chatScreen() {
         title(currentChatTitle.isEmpty()?"Переписка":currentChatTitle);
         body.addView(button("← К чатам",()->showPage("home")));
-        TextView history=text("Загрузка истории сообщений…",14,false,muted);body.addView(history);
+        LinearLayout history = new LinearLayout(this);
+        history.setOrientation(LinearLayout.VERTICAL);
+        history.setPadding(0, 10, 0, 10);
+        body.addView(history, new LinearLayout.LayoutParams(-1, -2));
         messageField=input("Сообщение…",false);body.addView(messageField);
         body.addView(button("Отправить",()->{
             String msg=value(messageField);if(msg.trim().isEmpty())return;
@@ -368,13 +371,42 @@ public class MainActivity extends Activity {
         };
         chatHandler.postDelayed(chatPoll, 5000);
     }
-    private void refreshChatHistory(TextView history) {
-        if (currentChatId.isEmpty()) { history.setText("Открой чат из списка."); return; }
+    private void refreshChatHistory(LinearLayout history) {
+        if (currentChatId.isEmpty()) {
+            history.removeAllViews();
+            history.addView(text("Открой чат из списка.", 14, false, muted));
+            return;
+        }
         request("GET","chats/"+currentChatId+"/messages?limit=50",null,true,(data,error)->{
-            JSONArray arr=data.optJSONArray("messages");if(arr==null)arr=data.optJSONArray("data");
-            StringBuilder out=new StringBuilder();
-            if(arr!=null)for(int i=0;i<arr.length();i++){JSONObject m=arr.optJSONObject(i);if(m!=null)out.append(m.optString("sender_name","")).append(": ").append(m.optString("body","")).append("\n");}
-            history.setText(out.length()==0?"Сообщений пока нет.":out.toString());
+            if (!"chat".equals(page)) return;
+            JSONArray arr=data.optJSONArray("messages");
+            if(arr==null)arr=data.optJSONArray("data");
+            history.removeAllViews();
+            if(arr==null || arr.length()==0) {
+                TextView empty=text("Пока нет сообщений.\nНапиши первым 👋",15,false,muted);
+                empty.setGravity(Gravity.CENTER);
+                empty.setPadding(18, 30, 18, 30);
+                history.addView(empty);
+                return;
+            }
+            for(int i=0;i<arr.length();i++) {
+                JSONObject m=arr.optJSONObject(i);
+                if(m==null) continue;
+                boolean mine=m.optBoolean("is_mine", false);
+                LinearLayout bubble=new LinearLayout(this);
+                bubble.setOrientation(LinearLayout.VERTICAL);
+                bubble.setPadding(14, 10, 14, 10);
+                bubble.setBackground(shape(mine ? 0xff55458f : panel, 18));
+                TextView sender=text(m.optString("sender_name", mine ? "Вы" : "Участник"),12,true,mine ? 0xffe5dcff : accent);
+                TextView content=text(m.optString("body",""),15,false,white);
+                content.setMaxWidth((int)(getResources().getDisplayMetrics().widthPixels * 0.72f));
+                bubble.addView(sender);
+                bubble.addView(content);
+                LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(-2,-2);
+                params.setMargins(0,4,0,4);
+                params.gravity=mine ? Gravity.RIGHT : Gravity.LEFT;
+                history.addView(bubble,params);
+            }
         });
     }
     private void searchScreen() {
