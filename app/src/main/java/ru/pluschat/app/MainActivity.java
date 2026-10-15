@@ -61,7 +61,7 @@ public class MainActivity extends Activity {
         Button b = new Button(this);
         b.setAllCaps(false);
         b.setGravity(Gravity.CENTER_VERTICAL | Gravity.LEFT);
-        b.setText(symbol + "   " + label + "\\n" + "       " + detail);
+        b.setText(symbol + "   " + label + "\n" + "       " + detail);
         b.setTextColor(white);
         b.setTextSize(14);
         b.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
