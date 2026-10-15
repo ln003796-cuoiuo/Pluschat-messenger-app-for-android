@@ -22,6 +22,7 @@ public class MainActivity extends Activity {
     private EditText phoneField, codeField, emailField, emailCodeField, firstNameField, lastNameField, usernameField, passwordField, bioField, birthField, educationField, identifierField, loginPasswordField, messageField, searchField;
     private ArrayList<JSONObject> chats = new ArrayList<>();
     private boolean lightMode = false;
+    private android.net.Uri selectedAvatar;
     private final Handler chatHandler = new Handler(Looper.getMainLooper());
     private Runnable chatPoll;
 
@@ -121,6 +122,8 @@ public class MainActivity extends Activity {
             })));
         } else {
             subtitle("Данные аккаунта. Дата рождения, учёба и описание — необязательно.");
+            body.addView(button("Выбрать аватарку", this::pickAvatar));
+            if (selectedAvatar != null) subtitle("Аватар выбран. Он загрузится после создания аккаунта.");
             firstNameField = input("Имя", false); body.addView(firstNameField);
             lastNameField = input("Фамилия", false); body.addView(lastNameField);
             usernameField = input("@username", false); body.addView(usernameField);
@@ -141,7 +144,12 @@ public class MainActivity extends Activity {
             "username", un.replaceFirst("^@", ""), "bio", value(bioField), "birth_date", value(birthField), "education", value(educationField));
         request("POST", "auth/registration/complete", payload, false, data -> {
             if (!saveSession(data)) return;
-            showPage("home");
+            if (selectedAvatar != null) {
+                ApiClient.uploadFile(this, selectedAvatar, "me/avatar", SessionStore.token(this), (upload, error) -> {
+                    if (error != null) message("Аккаунт создан, но аватар не загрузился: " + error);
+                    showPage("home");
+                });
+            } else showPage("home");
         });
     }
     private void login() {
@@ -244,6 +252,9 @@ public class MainActivity extends Activity {
     private void profileScreen() {
         title("Мой профиль");subtitle("Редактирование профиля будет работать через GET/PATCH me.");
         EditText name=input("Имя",false), surname=input("Фамилия",false), username=input("@username",false), bio=input("Описание",false), birth=input("Дата рождения YYYY-MM-DD",false), edu=input("Учёба / работа",false);
+        body.addView(button("Выбрать аватарку", this::pickAvatar));
+        if (selectedAvatar != null) subtitle("Выбран файл аватарки.");
+        body.addView(button("Загрузить выбранную аватарку", () -> { if (selectedAvatar == null) { message("Сначала выбери изображение."); return; } ApiClient.uploadFile(this, selectedAvatar, "me/avatar", SessionStore.token(this), (data,error) -> { if(error!=null)message(error);else message("Аватар обновлён."); }); }));
         body.addView(name);body.addView(surname);body.addView(username);body.addView(bio);body.addView(birth);body.addView(edu);
         request("GET","me",null,true,data->{JSONObject u=data.optJSONObject("user");if(u==null)u=data;name.setText(u.optString("first_name",""));surname.setText(u.optString("last_name",""));username.setText(u.optString("username",""));bio.setText(u.optString("bio",""));birth.setText(u.optString("birth_date",""));edu.setText(u.optString("education",""));});
         body.addView(button("Сохранить профиль",()->request("PATCH","me",ApiClient.json("first_name",value(name),"last_name",value(surname),"username",value(username).replaceFirst("^@",""),"bio",value(bio),"birth_date",value(birth),"education",value(edu)),true,data->message("Профиль сохранён."))));
@@ -257,6 +268,20 @@ public class MainActivity extends Activity {
         body.addView(button("Разрешения Android",()->{try{startActivity(new android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,android.net.Uri.parse("package:"+getPackageName())));}catch(Exception ignored){}}));
         body.addView(button("Назад",()->showPage("home")));
     }
+    private void pickAvatar() {
+        android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
+        intent.setType("image/*");
+        startActivityForResult(android.content.Intent.createChooser(intent, "Выбрать аватарку"), 7101);
+    }
+    @Override protected void onActivityResult(int requestCode, int resultCode, android.content.Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 7101 && resultCode == RESULT_OK && data != null) {
+            selectedAvatar = data.getData();
+            message("Изображение выбрано.");
+            if ("register".equals(page) || "profile".equals(page)) showPage(page);
+        }
+    }
+
     private void openCommunity(boolean channel) { android.content.Intent intent = new android.content.Intent(this, CommunityActivity.class); intent.putExtra("channel", channel); startActivity(intent); }
 
     private void logout() {
