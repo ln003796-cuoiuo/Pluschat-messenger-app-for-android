@@ -616,11 +616,9 @@ public class MainActivity extends Activity {
         title("Внешний вид");
         subtitle("Подстрой Pluschat под себя.");
         body.addView(text("ТЕМА", 11, true, muted));
-        body.addView(button(lightMode ? "Тёмная тема включена? Включить тёмную" : "Тёмная тема · включена", () -> {
-            lightMode = false; showPage("appearance");
-        }));
-        body.addView(button("Светлая тема", () -> {
-            lightMode = true; showPage("appearance");
+        body.addView(button(lightMode ? "Включить тёмную тему" : "Включить светлую тему", () -> {
+            lightMode = !lightMode;
+            showPage("appearance");
         }));
         body.addView(text("АКЦЕНТ", 11, true, muted));
         LinearLayout swatches = row();
