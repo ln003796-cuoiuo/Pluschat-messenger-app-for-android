@@ -229,7 +229,7 @@ public class MainActivity extends Activity {
             setupId[0]=data.optString("setup_id","");
             String secret=data.optString("secret","");
             String url=data.optString("otpauth_url","");
-            secretView.setText("Добавь аккаунт в приложение-аутентификатор. Секрет: "+(secret.isEmpty()?"см. инструкцию сервера":secret)+(url.isEmpty()?"":"\\n"+url));
+            secretView.setText("Добавь аккаунт в приложение-аутентификатор. Секрет: "+(secret.isEmpty()?"см. инструкцию сервера":secret)+(url.isEmpty()?"":"\n"+url));
         })));
         body.addView(button("Подтвердить и включить",()->{
             if(setupId[0].isEmpty()){message("Сначала нажми «Настроить 2FA».");return;}
@@ -373,7 +373,7 @@ public class MainActivity extends Activity {
         request("GET","chats/"+currentChatId+"/messages?limit=50",null,true,(data,error)->{
             JSONArray arr=data.optJSONArray("messages");if(arr==null)arr=data.optJSONArray("data");
             StringBuilder out=new StringBuilder();
-            if(arr!=null)for(int i=0;i<arr.length();i++){JSONObject m=arr.optJSONObject(i);if(m!=null)out.append(m.optString("sender_name","")).append(": ").append(m.optString("body","")).append("\\n");}
+            if(arr!=null)for(int i=0;i<arr.length();i++){JSONObject m=arr.optJSONObject(i);if(m!=null)out.append(m.optString("sender_name","")).append(": ").append(m.optString("body","")).append("\n");}
             history.setText(out.length()==0?"Сообщений пока нет.":out.toString());
         });
     }
