@@ -19,10 +19,10 @@ public class CommunityActivity extends Activity {
     private Button button(String s,Runnable r){Button b=new Button(this);b.setText(s);b.setAllCaps(false);b.setTextColor(bg);b.setBackground(shape(0xffcdcdd4));b.setOnClickListener(v->r.run());return b;}
     private EditText field(String hint){EditText e=new EditText(this);e.setHint(hint);e.setTextColor(white);e.setHintTextColor(muted);e.setBackground(shape(panel));return e;}
     private void render(){
-        LinearLayout root=new LinearLayout(this);root.setOrientation(1);root.setPadding(20,24,20,20);root.setBackgroundColor(bg);
+        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(20,24,20,20);root.setBackgroundColor(bg);
         root.addView(label(channel?"Каналы":"Группы",26,true));
         root.addView(label(channel?"Публикации для подписчиков":"Общие переписки и темы",14,false));
-        LinearLayout form=new LinearLayout(this);form.setOrientation(1);
+        LinearLayout form=new LinearLayout(this);form.setOrientation(LinearLayout.VERTICAL);
         EditText name=field(channel?"Название канала":"Название группы");
         EditText description=field("Описание (необязательно)");
         EditText visibility=field("Тип: private или public");visibility.setText("private");
@@ -36,7 +36,7 @@ public class CommunityActivity extends Activity {
             });
         }));
         root.addView(button("Обновить список",this::load));
-        ScrollView scroll=new ScrollView(this);list=new LinearLayout(this);list.setOrientation(1);scroll.addView(list);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        ScrollView scroll=new ScrollView(this);list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);scroll.addView(list);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         root.addView(button("Назад",this::finish));setContentView(root);load();
     }
     private void load(){
