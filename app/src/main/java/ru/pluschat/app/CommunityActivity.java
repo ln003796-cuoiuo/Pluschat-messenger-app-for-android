@@ -12,14 +12,14 @@ import org.json.JSONObject;
 public class CommunityActivity extends Activity {
     private LinearLayout list;
     private boolean channel;
-    private final int bg=0xfff7f5fb, panel=Color.WHITE, white=0xff282438, muted=0xff89839a, accent=0xffd9d0ff;
+    private final int bg=0xff0b0d12, panel=0xff131720, white=0xfff5f7fb, muted=0xff98a2b5, accent=0xff6f5bea;
     @Override public void onCreate(Bundle state){super.onCreate(state);channel=getIntent().getBooleanExtra("channel",false);render();}
     private GradientDrawable shape(int c){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(18);return d;}
     private TextView label(String s,int size,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextColor(bold?white:muted);t.setTextSize(size);if(bold)t.setTypeface(null,android.graphics.Typeface.BOLD);return t;}
-    private Button button(String s,Runnable r){Button b=new Button(this);b.setText(s);b.setAllCaps(false);b.setTextSize(16);b.setTypeface(null,android.graphics.Typeface.BOLD);b.setTextColor(0xff2b2148);b.setPadding(18,12,18,12);b.setMinHeight(60);b.setMinimumHeight(60);b.setBackground(shape(accent));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.setMargins(0,6,0,6);b.setLayoutParams(p);b.setOnClickListener(v->r.run());return b;}
-    private EditText field(String hint){EditText e=new EditText(this);e.setHint(hint);e.setTextColor(white);e.setHintTextColor(muted);e.setTextSize(16);e.setPadding(16,14,16,14);e.setMinHeight(60);e.setBackground(shape(0xfff0eef7));return e;}
+    private Button button(String s,Runnable r){Button b=new Button(this);b.setText(s);b.setAllCaps(false);b.setTextSize(16);b.setTypeface(null,android.graphics.Typeface.BOLD);b.setTextColor(Color.WHITE);b.setPadding(18,12,18,12);b.setMinHeight(60);b.setMinimumHeight(60);b.setBackground(shape(accent));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.setMargins(0,6,0,6);b.setLayoutParams(p);b.setOnClickListener(v->r.run());return b;}
+    private EditText field(String hint){EditText e=new EditText(this);e.setHint(hint);e.setTextColor(white);e.setHintTextColor(muted);e.setTextSize(16);e.setPadding(16,14,16,14);e.setMinHeight(60);e.setBackground(shape(0xff1a2030));return e;}
     private void render(){
-        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(20,24,20,24);root.setBackgroundColor(bg);
+        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(20,24,20,24);root.setBackgroundColor(bg);getWindow().setStatusBarColor(bg);getWindow().setNavigationBarColor(bg);if(android.os.Build.VERSION.SDK_INT>=23)getWindow().getDecorView().setSystemUiVisibility(0);
         TextView heading=label("Сообщества",25,true);root.addView(heading);
         root.addView(label("Места, где собираются твои люди",13,false));
         LinearLayout form=new LinearLayout(this);form.setOrientation(LinearLayout.VERTICAL);
