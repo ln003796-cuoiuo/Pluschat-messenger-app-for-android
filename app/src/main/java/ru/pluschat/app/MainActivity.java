@@ -278,7 +278,7 @@ public class MainActivity extends Activity {
         if (requestCode == 7101 && resultCode == RESULT_OK && data != null) {
             selectedAvatar = data.getData();
             message("Изображение выбрано.");
-            if ("register".equals(page) || "profile".equals(page)) showPage(page);
+
         }
     }
 
