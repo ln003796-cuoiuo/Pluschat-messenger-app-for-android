@@ -46,8 +46,9 @@ public class MainActivity extends Activity {
     }
     private EditText input(String hint, boolean secret) {
         EditText e = new EditText(this); e.setSingleLine(!hint.equals("Описание профиля (необязательно)"));
-        e.setHint(hint); e.setTextColor(white); e.setHintTextColor(muted); e.setTextSize(15);
-        e.setPadding(14, 8, 14, 8); e.setBackground(shape(panel, 16));
+        e.setHint(hint); e.setTextColor(lightMode ? 0xff282438 : white);
+        e.setHintTextColor(lightMode ? 0xff8c869b : muted); e.setTextSize(15);
+        e.setPadding(14, 8, 14, 8); e.setBackground(shape(lightMode ? 0xfff0eef7 : panel, 16));
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, secret ? 54 : -2); p.setMargins(0, 5, 0, 5); e.setLayoutParams(p);
         if (secret) e.setInputType(129);
         return e;
