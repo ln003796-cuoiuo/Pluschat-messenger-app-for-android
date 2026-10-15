@@ -13,12 +13,12 @@ public class CommunityDetailActivity extends Activity {
     private String id="", titleText="";
     private boolean channel;
     private LinearLayout list;
-    private final int bg=Color.rgb(9,9,11), white=Color.WHITE, muted=Color.rgb(165,165,172);
+    private final int bg=Color.rgb(10,12,20), panel=Color.rgb(25,29,43), white=Color.rgb(246,247,255), muted=Color.rgb(157,166,190), accent=Color.rgb(170,153,255);
     @Override public void onCreate(Bundle state){super.onCreate(state);id=getIntent().getStringExtra("community_id");titleText=getIntent().getStringExtra("community_title");channel=getIntent().getBooleanExtra("channel",false);render();}
     private GradientDrawable shape(int c){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(18);return d;}
     private TextView label(String s,int size,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextColor(bold?white:muted);t.setTextSize(size);if(bold)t.setTypeface(null,android.graphics.Typeface.BOLD);return t;}
-    private Button button(String s,Runnable r){Button b=new Button(this);b.setText(s);b.setAllCaps(false);b.setTextColor(bg);b.setBackground(shape(0xffcdcdd4));b.setOnClickListener(v->r.run());return b;}
-    private EditText field(String hint){EditText e=new EditText(this);e.setHint(hint);e.setTextColor(white);e.setHintTextColor(muted);e.setBackground(shape(0xff17171a));return e;}
+    private Button button(String s,Runnable r){Button b=new Button(this);b.setText(s);b.setAllCaps(false);b.setTextColor(bg);b.setBackground(shape(accent));b.setOnClickListener(v->r.run());return b;}
+    private EditText field(String hint){EditText e=new EditText(this);e.setHint(hint);e.setTextColor(white);e.setHintTextColor(muted);e.setTextSize(15);e.setPadding(14,10,14,10);e.setBackground(shape(panel));return e;}
     private void render(){
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(20,24,20,20);root.setBackgroundColor(bg);
         root.addView(label(titleText==null?"Сообщество":titleText,25,true));
@@ -40,7 +40,7 @@ public class CommunityDetailActivity extends Activity {
             if(arr==null||arr.length()==0){list.addView(label(channel?"Публикаций пока нет.":"Тем пока нет. Создай первую.",14,false));return;}
             for(int i=0;i<arr.length();i++){JSONObject item=arr.optJSONObject(i);if(item==null)continue;
                 String name=item.optString("title",item.optString("body",channel?"Публикация":"Тема"));
-                TextView row=label(name+"\n"+item.optString("created_at",""),16,true);row.setPadding(12,14,12,14);list.addView(row);
+                LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setPadding(16,14,16,14);card.setBackground(shape(panel));LinearLayout.LayoutParams cardParams=new LinearLayout.LayoutParams(-1,-2);cardParams.setMargins(0,5,0,5);TextView row=label(name,17,true);TextView meta=label(item.optString("created_at",channel?"Публикация канала":"Тема группы"),12,false);card.addView(row);card.addView(meta);list.addView(card,cardParams);
             }
         });
     }
