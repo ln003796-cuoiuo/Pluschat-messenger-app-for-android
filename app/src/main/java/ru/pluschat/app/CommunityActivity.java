@@ -20,14 +20,13 @@ public class CommunityActivity extends Activity {
     private EditText field(String hint){EditText e=new EditText(this);e.setHint(hint);e.setTextColor(white);e.setHintTextColor(muted);e.setTextSize(15);e.setPadding(14,10,14,10);e.setBackground(shape(panel));return e;}
     private void render(){
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(20,24,20,20);root.setBackgroundColor(bg);
-        TextView heading=label(channel?"Каналы":"Группы",28,true);root.addView(heading);
-        root.addView(label(channel?"Публикации для подписчиков":"Общие переписки и темы",14,false));
+        TextView heading=label("Сообщества",25,true);root.addView(heading);
+        root.addView(label("Места, где собираются твои люди",13,false));
         LinearLayout form=new LinearLayout(this);form.setOrientation(LinearLayout.VERTICAL);
         EditText name=field(channel?"Название канала":"Название группы");
         EditText description=field("Описание (необязательно)");
         EditText visibility=field("Тип: private или public");visibility.setText("private");
-        form.addView(name);form.addView(description);form.addView(visibility);
-        root.addView(button(channel?"Создать канал":"Создать группу",()->{
+        root.addView(button(channel?"＋  Создать канал":"＋  Создать группу",()->{
             if(name.getText().toString().trim().isEmpty()){Toast.makeText(this,"Укажи название",Toast.LENGTH_SHORT).show();return;}
             JSONObject payload=ApiClient.json("title",name.getText().toString().trim(),"description",description.getText().toString().trim(),"visibility",visibility.getText().toString().trim());
             ApiClient.request("POST",channel?"channels":"groups",payload,SessionStore.token(this),(data,error)->{
