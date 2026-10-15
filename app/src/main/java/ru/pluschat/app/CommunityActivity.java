@@ -12,11 +12,11 @@ import org.json.JSONObject;
 public class CommunityActivity extends Activity {
     private LinearLayout list;
     private boolean channel;
-    private final int bg=Color.rgb(10,12,20), panel=Color.rgb(25,29,43), white=Color.rgb(246,247,255), muted=Color.rgb(157,166,190), accent=Color.rgb(170,153,255);
+    private final int bg=0xfff7f5fb, panel=Color.WHITE, white=0xff282438, muted=0xff89839a, accent=0xffd9d0ff;
     @Override public void onCreate(Bundle state){super.onCreate(state);channel=getIntent().getBooleanExtra("channel",false);render();}
     private GradientDrawable shape(int c){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(18);return d;}
     private TextView label(String s,int size,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextColor(bold?white:muted);t.setTextSize(size);if(bold)t.setTypeface(null,android.graphics.Typeface.BOLD);return t;}
-    private Button button(String s,Runnable r){Button b=new Button(this);b.setText(s);b.setAllCaps(false);b.setTextColor(bg);b.setBackground(shape(accent));b.setOnClickListener(v->r.run());return b;}
+    private Button button(String s,Runnable r){Button b=new Button(this);b.setText(s);b.setAllCaps(false);b.setTextColor(0xff2b2148);b.setBackground(shape(accent));b.setOnClickListener(v->r.run());return b;}
     private EditText field(String hint){EditText e=new EditText(this);e.setHint(hint);e.setTextColor(white);e.setHintTextColor(muted);e.setTextSize(15);e.setPadding(14,10,14,10);e.setBackground(shape(panel));return e;}
     private void render(){
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(20,24,20,20);root.setBackgroundColor(bg);
