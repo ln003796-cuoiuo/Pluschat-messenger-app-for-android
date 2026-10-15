@@ -47,7 +47,7 @@ public class CommunityActivity extends Activity {
             if(arr==null||arr.length()==0){list.addView(label("Пока пусто. После подключения API здесь появятся твои "+(channel?"каналы.":"группы."),14,false));return;}
             for(int i=0;i<arr.length();i++){JSONObject item=arr.optJSONObject(i);if(item==null)continue;
                 String title=item.optString("title",item.optString("name",channel?"Канал":"Группа"));
-                TextView row=label("◉  "+title+"\n"+item.optString("description",""),16,true);row.setPadding(12,14,12,14);list.addView(row);
+                TextView row=label("◉  "+title+"\n"+item.optString("description",""),16,true);row.setPadding(12,14,12,14);row.setOnClickListener(v->{android.content.Intent intent=new android.content.Intent(this,CommunityDetailActivity.class);intent.putExtra("community_id",item.optString("id",item.optString("group_id",item.optString("channel_id",""))));intent.putExtra("community_title",title);intent.putExtra("channel",channel);startActivity(intent);});list.addView(row);
             }
         });
     }
