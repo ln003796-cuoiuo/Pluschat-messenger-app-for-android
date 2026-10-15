@@ -165,8 +165,8 @@ public class MainActivity extends Activity {
         subtitle("Личные сообщения, группы и каналы будут загружаться с сервера.");
         searchField=input("Поиск людей и чатов",false); body.addView(searchField);
         body.addView(button("Найти пользователя",()->showPage("search")));
-        body.addView(button("Группы",()->message("Группы: подключение после реализации API groups.")));
-        body.addView(button("Каналы",()->message("Каналы: подключение после реализации API channels.")));
+        body.addView(button("Группы",()->openCommunity(false)));
+        body.addView(button("Каналы",()->openCommunity(true)));
         body.addView(button("Контакты",()->showPage("search")));
         body.addView(button("Обновить чаты",this::loadChats));
         body.addView(button("Профиль",()->showPage("profile")));
@@ -240,6 +240,8 @@ public class MainActivity extends Activity {
         body.addView(button("Разрешения Android",()->{try{startActivity(new android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,android.net.Uri.parse("package:"+getPackageName())));}catch(Exception ignored){}}));
         body.addView(button("Назад",()->showPage("home")));
     }
+    private void openCommunity(boolean channel) { android.content.Intent intent = new android.content.Intent(this, CommunityActivity.class); intent.putExtra("channel", channel); startActivity(intent); }
+
     private void logout() {
         String token = SessionStore.token(this);
         SessionStore.clear(this);
