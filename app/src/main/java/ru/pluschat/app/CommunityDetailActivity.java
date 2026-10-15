@@ -16,7 +16,7 @@ public class CommunityDetailActivity extends Activity {
     private final int bg=Color.rgb(9,9,11), white=Color.WHITE, muted=Color.rgb(165,165,172);
     @Override public void onCreate(Bundle state){super.onCreate(state);id=getIntent().getStringExtra("community_id");titleText=getIntent().getStringExtra("community_title");channel=getIntent().getBooleanExtra("channel",false);render();}
     private GradientDrawable shape(int c){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(18);return d;}
-    private TextView label(String s,int size,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextColor(bold?white:muted);t.setTextSize(size);if(bold)t.setTypeface(null,1);return t;}
+    private TextView label(String s,int size,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextColor(bold?white:muted);t.setTextSize(size);if(bold)t.setTypeface(null,android.graphics.Typeface.BOLD);return t;}
     private Button button(String s,Runnable r){Button b=new Button(this);b.setText(s);b.setAllCaps(false);b.setTextColor(bg);b.setBackground(shape(0xffcdcdd4));b.setOnClickListener(v->r.run());return b;}
     private EditText field(String hint){EditText e=new EditText(this);e.setHint(hint);e.setTextColor(white);e.setHintTextColor(muted);e.setBackground(shape(0xff17171a));return e;}
     private void render(){
