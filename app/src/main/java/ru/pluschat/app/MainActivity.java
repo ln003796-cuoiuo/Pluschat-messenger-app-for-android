@@ -7,9 +7,7 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
 import android.view.View;
-import android.view.inputmethod.InputMethodManager;
 import android.content.Context;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -243,7 +241,10 @@ public class MainActivity extends Activity {
         body.addView(button("Назад",()->showPage("home")));
     }
     private void logout() {
-        request("POST","auth/logout",new JSONObject(),true,data->{SessionStore.clear(this);showPage("auth");});
+        String token = SessionStore.token(this);
+        SessionStore.clear(this);
+        showPage("auth");
+        if (!token.isEmpty()) ApiClient.request("POST", "auth/logout", new JSONObject(), token, (data, error) -> {});
     }
     private void request(String method,String path,JSONObject payload,boolean auth,ApiClient.Callback callback) {
         String token=auth?SessionStore.token(this):"";
