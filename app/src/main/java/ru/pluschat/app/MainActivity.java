@@ -323,7 +323,7 @@ public class MainActivity extends Activity {
     private void settingsScreen() {
         title("Настройки");subtitle("Аккаунт · безопасность · приватность · оформление");
         body.addView(button(lightMode?"Включить тёмную тему":"Включить светлую тему",()->{lightMode=!lightMode;showPage("settings");}));
-        body.addView(button("Двухэтапная аутентификация",()->message("Подключение 2FA будет доступно после реализации серверных endpoints и настройки способа подтверждения.")));
+        body.addView(button("Настроить двухэтапную аутентификацию",()->showPage("twofa_setup")));
         body.addView(button("Активные устройства",()->message("Управление сессиями появится после подключения API устройств.")));
         body.addView(button("Разрешения Android",()->showPage("permissions")));
         body.addView(button("Назад",()->showPage("home")));
