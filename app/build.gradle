@@ -9,7 +9,8 @@ android {
         targetSdk 35
         versionCode 1
         versionName '0.1.0'
-        buildConfigField 'String', 'API_BASE_URL', '"https://xn--80avljg2a1c.xn--p1ai/api/v1/"'
+        // All app traffic goes through the dedicated protocol gateway, never directly to the main host.
+        buildConfigField 'String', 'API_BASE_URL', '"https://xn--n1aabel.xn--80avljg2a1c.xn--p1ai/api/v1/"'
     }
     buildFeatures { buildConfig true }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
