@@ -52,10 +52,10 @@ public final class ApiClient {
                 }
                 if (code < 200 || code >= 300) {
                     JSONObject e = response.optJSONObject("error");
-                    error = e != null ? e.optString("message", "Request failed (" + code + ")") : response.optString("message", "Request failed (" + code + ")");
+                    error = e != null ? e.optString("message", e.optString("code", "Request failed (" + code + ")")) : response.optString("message", response.optString("error", "Request failed (" + code + ")"));
                 }
             } catch (Exception ex) {
-                error = "Не удалось подключиться к серверу. Проверь интернет и доступность основного хоста.";
+                error = "Не удалось подключиться к основному серверу. Проверь интернет, HTTPS и адрес API.";
             } finally {
                 if (connection != null) connection.disconnect();
             }
