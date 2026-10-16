@@ -72,12 +72,12 @@ public class MainActivity extends Activity {
         b.setTextColor(white);
         b.setTextSize(14);
         b.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        b.setPadding(16, 12, 16, 12);
+        b.setPadding(dp(16), dp(12), dp(16), dp(12));
         b.setMinHeight(76);
         b.setBackground(shape(panel, 20));
         b.setOnClickListener(v -> action.run());
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, -2, 1);
-        p.setMargins(4, 5, 4, 5);
+        p.setMargins(dp(4), dp(5), dp(4), dp(5));
         b.setLayoutParams(p);
         return b;
     }
@@ -177,8 +177,8 @@ public class MainActivity extends Activity {
         return item;
     }
 
-    private void title(String s) { TextView t=text(s, 25, true, lightMode ? Color.BLACK : white); t.setPadding(0, 5, 0, 5); body.addView(t); }
-    private void subtitle(String s) { TextView t = text(s, 14, false, muted); t.setPadding(0, 4, 0, 12); body.addView(t); }
+    private void title(String s) { TextView t=text(s, 25, true, lightMode ? Color.BLACK : white); t.setPadding(0, dp(5), 0, dp(5)); body.addView(t); }
+    private void subtitle(String s) { TextView t = text(s, 14, false, muted); t.setPadding(0, dp(4), 0, dp(12)); body.addView(t); }
     private void welcomeScreen() {
         body.setGravity(Gravity.CENTER_HORIZONTAL);
         body.setPadding(dp(24), dp(78), dp(24), dp(24));
@@ -412,7 +412,7 @@ public class MainActivity extends Activity {
         searchField.setHintTextColor(0xff8994a8);
         searchField.setTextColor(0xfff5f7fb);
         searchField.setBackgroundColor(Color.TRANSPARENT);
-        searchField.setPadding(10, 0, 0, 0);
+        searchField.setPadding(dp(10), 0, 0, 0);
         searchRow.addView(searchField, new LinearLayout.LayoutParams(0, dp(52), 1));
         TextView go = text("→", 22, true, 0xffb9adff);
         go.setGravity(Gravity.CENTER);
@@ -424,16 +424,16 @@ public class MainActivity extends Activity {
         body.addView(searchRow, searchParams);
 
         LinearLayout filters = row();
-        filters.setPadding(0, 0, 0, 12);
-        filters.addView(filterChip("Все", true), new LinearLayout.LayoutParams(0, 38, 1));
-        filters.addView(filterChip("Личные", false), new LinearLayout.LayoutParams(0, 38, 1));
-        filters.addView(filterChip("Группы", false), new LinearLayout.LayoutParams(0, 38, 1));
+        filters.setPadding(0, 0, 0, dp(12));
+        filters.addView(filterChip("Все", true), new LinearLayout.LayoutParams(0, dp(38), 1));
+        filters.addView(filterChip("Личные", false), new LinearLayout.LayoutParams(0, dp(38), 1));
+        filters.addView(filterChip("Группы", false), new LinearLayout.LayoutParams(0, dp(38), 1));
         body.addView(filters);
 
         LinearLayout sectionRow = row();
         sectionRow.addView(text("Недавние", 18, true, white), new LinearLayout.LayoutParams(0, -2, 1));
         TextView refresh = text("Обновить ↻", 12, true, 0xffb9adff);
-        refresh.setPadding(8, 8, 0, 8);
+        refresh.setPadding(dp(8), dp(8), 0, dp(8));
         refresh.setOnClickListener(v -> loadChats());
         sectionRow.addView(refresh);
         body.addView(sectionRow);
@@ -451,7 +451,7 @@ public class MainActivity extends Activity {
         chip.setGravity(Gravity.CENTER);
         chip.setBackground(shape(selected ? 0xff292443 : 0xff171b24, 19));
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -1);
-        p.setMargins(3, 0, 3, 0);
+        p.setMargins(dp(3), 0, dp(3), 0);
         chip.setLayoutParams(p);
         chip.setOnClickListener(v -> {
             if ("Личные".equals(label)) showPage("contacts");
@@ -464,22 +464,22 @@ public class MainActivity extends Activity {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setGravity(Gravity.CENTER_HORIZONTAL);
-        card.setPadding(10, 16, 10, 16);
+        card.setPadding(dp(10), dp(16), dp(10), dp(16));
         card.setBackground(shape(surface, 19));
         TextView glyph = text(symbol, 28, true, ink);
         glyph.setGravity(Gravity.CENTER);
         card.addView(glyph, new LinearLayout.LayoutParams(-1, 31));
         TextView name = text(title, 14, true, 0xff2d293b);
         name.setGravity(Gravity.CENTER);
-        name.setPadding(0, 7, 0, 0);
+        name.setPadding(0, dp(7), 0, 0);
         card.addView(name);
         TextView caption = text(detail, 12, false, 0xff777186);
         caption.setGravity(Gravity.CENTER);
-        caption.setPadding(0, 2, 0, 0);
+        caption.setPadding(0, dp(2), 0, 0);
         card.addView(caption);
         card.setOnClickListener(v -> action.run());
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, -2, 1);
-        p.setMargins(4, 0, 4, 0);
+        p.setMargins(dp(4), 0, dp(4), 0);
         card.setLayoutParams(p);
         return card;
     }
@@ -487,7 +487,7 @@ public class MainActivity extends Activity {
         if (chatList == null || !"home".equals(page)) return;
         chatList.removeAllViews();
         TextView loading = text("Загружаем переписки…", 14, false, 0xff89839a);
-        loading.setPadding(4, 18, 4, 18);
+        loading.setPadding(dp(4), dp(18), dp(4), dp(18));
         chatList.addView(loading);
         request("GET", "chats", null, true, (data, error) -> {
             if (!"home".equals(page) || chatList == null) return;
@@ -503,14 +503,14 @@ public class MainActivity extends Activity {
                 LinearLayout empty = new LinearLayout(this);
                 empty.setOrientation(LinearLayout.VERTICAL);
                 empty.setGravity(Gravity.CENTER);
-                empty.setPadding(18, 25, 18, 25);
+                empty.setPadding(dp(18), dp(25), dp(18), dp(25));
                 empty.setBackground(shape(0xff151925, 22));
                 TextView icon = text("✉", 34, true, 0xffb9adff);
                 icon.setGravity(Gravity.CENTER);
                 empty.addView(icon);
                 TextView label = text("Здесь будет твоя история", 17, true, 0xfff5f7fb);
                 label.setGravity(Gravity.CENTER);
-                label.setPadding(0, 8, 0, 4);
+                label.setPadding(0, dp(8), 0, dp(4));
                 empty.addView(label);
                 TextView hint = text("Найди человека и начни первый разговор.", 13, false, 0xff98a2b5);
                 hint.setGravity(Gravity.CENTER);
@@ -523,17 +523,17 @@ public class MainActivity extends Activity {
                     String name = chat.optString("title", chat.optString("name", "Чат"));
                     String preview = chat.optString("last_message", "Открыть переписку");
                     LinearLayout item = row();
-                    item.setPadding(12, 13, 12, 13);
+                    item.setPadding(dp(12), dp(13), dp(12), dp(13));
                     item.setBackground(shape(0xff131720, 19));
                     LinearLayout.LayoutParams itemParams = new LinearLayout.LayoutParams(-1, -2);
-                    itemParams.setMargins(0, 4, 0, 4);
+                    itemParams.setMargins(0, dp(4), 0, dp(4));
                     TextView avatar = text(name.isEmpty() ? "П" : name.substring(0, 1).toUpperCase(), 19, true, 0xffd7d0ff);
                     avatar.setGravity(Gravity.CENTER);
                     avatar.setBackground(shape(0xff292443, 30));
-                    item.addView(avatar, new LinearLayout.LayoutParams(50, 50));
+                    item.addView(avatar, new LinearLayout.LayoutParams(dp(52), dp(52)));
                     LinearLayout details = new LinearLayout(this);
                     details.setOrientation(LinearLayout.VERTICAL);
-                    details.setPadding(13, 0, 0, 0);
+                    details.setPadding(dp(13), 0, 0, 0);
                     details.addView(text(name, 15, true, 0xfff5f7fb));
                     TextView previewText = text(preview, 12, false, 0xff98a2b5);
                     previewText.setMaxLines(1);
@@ -647,7 +647,7 @@ public class MainActivity extends Activity {
             if(arr==null || arr.length()==0) {
                 TextView empty=text("Пока нет сообщений.\nНапиши первым 👋",15,false,muted);
                 empty.setGravity(Gravity.CENTER);
-                empty.setPadding(18, 30, 18, 30);
+                empty.setPadding(dp(18), dp(30), dp(18), dp(30));
                 history.addView(empty);
                 return;
             }
@@ -657,7 +657,7 @@ public class MainActivity extends Activity {
                 boolean mine=m.optBoolean("is_mine", false);
                 LinearLayout bubble=new LinearLayout(this);
                 bubble.setOrientation(LinearLayout.VERTICAL);
-                bubble.setPadding(14, 10, 14, 10);
+                bubble.setPadding(dp(14), dp(10), dp(14), dp(10));
                 bubble.setBackground(shape(mine ? 0xff5142a6 : 0xff171b24, 18));
                 TextView sender=text(m.optString("sender_name", mine ? "Вы" : "Участник"),12,true,mine ? 0xffe5dcff : 0xffb9adff);
                 TextView content=text(m.optString("body",""),15,false,white);
@@ -665,7 +665,7 @@ public class MainActivity extends Activity {
                 bubble.addView(sender);
                 bubble.addView(content);
                 LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(-2,-2);
-                params.setMargins(0,4,0,4);
+                params.setMargins(0,dp(4),0,dp(4));
                 params.gravity=mine ? Gravity.RIGHT : Gravity.LEFT;
                 history.addView(bubble,params);
             }
@@ -758,15 +758,15 @@ public class MainActivity extends Activity {
         title("Настройки");
         subtitle("Аккаунт · безопасность · приватность · оформление");
         LinearLayout account = row();
-        account.setPadding(14, 14, 14, 14);
+        account.setPadding(dp(14), dp(14), dp(14), dp(14));
         account.setBackground(shape(0xff171b24, 18));
         TextView avatar = text("К", 23, true, 0xffe2dcff);
         avatar.setGravity(Gravity.CENTER);
         avatar.setBackground(shape(0xff292443, 40));
-        account.addView(avatar, new LinearLayout.LayoutParams(48, 48));
+        account.addView(avatar, new LinearLayout.LayoutParams(dp(48), dp(48)));
         LinearLayout info = new LinearLayout(this);
         info.setOrientation(LinearLayout.VERTICAL);
-        info.setPadding(12, 0, 0, 0);
+        info.setPadding(dp(12), 0, 0, 0);
         info.addView(text("Мой профиль", 15, true, white));
         info.addView(text("@username · Управление аккаунтом", 11, false, muted));
         account.addView(info, new LinearLayout.LayoutParams(0, -2, 1));
@@ -796,8 +796,8 @@ public class MainActivity extends Activity {
         for (int color : colors) {
             View dot = new View(this);
             dot.setBackground(shape(color, 24));
-            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(42, 42);
-            p.setMargins(0, 10, 12, 16);
+            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(42), dp(42));
+            p.setMargins(0, dp(10), dp(12), dp(16));
             swatches.addView(dot, p);
         }
         body.addView(swatches);
@@ -819,10 +819,10 @@ public class MainActivity extends Activity {
         for (String[] option : options) {
             LinearLayout item = new LinearLayout(this);
             item.setOrientation(LinearLayout.VERTICAL);
-            item.setPadding(15, 13, 15, 13);
+            item.setPadding(dp(15), dp(13), dp(15), dp(13));
             item.setBackground(shape(0xff131720, 15));
             LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
-            p.setMargins(0, 4, 0, 4);
+            p.setMargins(0, dp(4), 0, dp(4));
             item.addView(text(option[0], 14, true, white));
             item.addView(text(option[1], 12, false, muted));
             TextView chevron = text("›", 23, false, muted);
