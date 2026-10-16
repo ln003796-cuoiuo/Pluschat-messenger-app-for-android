@@ -672,6 +672,7 @@ public class MainActivity extends Activity {
                     if(m==null) continue;
                     boolean mine = false;
                     String displayedBody;
+                    JSONObject remoteKeyForMessage = null;
                     try {
                         JSONObject envelope = new JSONObject(m.optString("body", ""));
                         String[] pair = envelope.optString("key_id").split(":", -1);
@@ -684,17 +685,40 @@ public class MainActivity extends Activity {
                         if (!CryptoManager.verifyAndPinPeerKey(this, currentPeerId, peerKey)) {
                             throw new IllegalArgumentException("Подпись ключа собеседника недействительна");
                         }
+                        remoteKeyForMessage = peerKey;
                         displayedBody = CryptoManager.decrypt(this, currentChatId, envelope.toString(), peerKey.optString("key_id"), peerKey.optString("signed_prekey"));
                     } catch (Exception cryptoError) {
                         displayedBody = "🔒 Не удалось расшифровать это сообщение на этом устройстве.";
                     }
+                    JSONObject fileMetadata = null;
+                    try {
+                        JSONObject candidate = new JSONObject(displayedBody);
+                        if ("file".equals(candidate.optString("type"))) fileMetadata = candidate;
+                        else if ("attachment_pending".equals(candidate.optString("type"))) displayedBody = "📎 Вложение отправляется…";
+                    } catch (Exception ignored) {}
+                    final JSONObject attachmentMeta = fileMetadata;
+                    final JSONObject attachmentPeerKey = remoteKeyForMessage;
                     LinearLayout bubble=new LinearLayout(this);
                     bubble.setOrientation(LinearLayout.VERTICAL);
                     bubble.setPadding(dp(14), dp(10), dp(14), dp(10));
                     bubble.setBackground(shape(mine ? 0xff5142a6 : 0xff171b24, 18));
                     TextView sender=text(mine ? "Вы" : currentChatTitle,12,true,mine ? 0xffe5dcff : 0xffb9adff);
-                    TextView content=text(displayedBody,15,false,white);
+                    String contentText = displayedBody;
+                    if (attachmentMeta != null) {
+                        long bytes = attachmentMeta.optLong("byte_size", 0);
+                        contentText = "📎 " + attachmentMeta.optString("name", "Зашифрованный файл")
+                                + "\\n" + (bytes >= 1024 * 1024 ? String.format(java.util.Locale.ROOT, "%.1f МБ", bytes / 1048576.0)
+                                : Math.max(1, bytes / 1024) + " КБ") + "\\nНажми, чтобы скачать и расшифровать";
+                    }
+                    TextView content=text(contentText,15,false,white);
                     content.setMaxWidth((int)(getResources().getDisplayMetrics().widthPixels * 0.72f));
+                    if (attachmentMeta != null && attachmentPeerKey != null) {
+                        final String downloadConversationId = currentChatId;
+                        content.setOnClickListener(v -> downloadEncryptedAttachment(downloadConversationId,
+                                attachmentMeta.optString("attachment_id"), attachmentMeta.optString("name", "download.bin"),
+                                attachmentMeta.optString("mime_type", "application/octet-stream"),
+                                attachmentPeerKey.optString("key_id"), attachmentPeerKey.optString("signed_prekey")));
+                    }
                     bubble.addView(sender);
                     bubble.addView(content);
                     LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(-2,-2);
