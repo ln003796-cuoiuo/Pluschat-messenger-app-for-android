@@ -660,13 +660,15 @@ public class MainActivity extends Activity {
                 for(int i=0;i<arr.length();i++) {
                     JSONObject m=arr.optJSONObject(i);
                     if(m==null) continue;
-                    boolean mine=String.valueOf(m.optString("sender_id", "")).equals(currentUserId(data));
+                    boolean mine = false;
                     String displayedBody;
                     try {
                         JSONObject envelope = new JSONObject(m.optString("body", ""));
                         String[] pair = envelope.optString("key_id").split(":", -1);
                         if (pair.length != 2) throw new IllegalArgumentException("Неверный идентификатор ключа");
-                        String peerShort = pair[0].equals(ownHash.substring(0, 32)) ? pair[1] : pair[0];
+                        String ownShort = ownHash.substring(0, 32);
+                        mine = pair[0].equals(ownShort);
+                        String peerShort = mine ? pair[1] : pair[0];
                         JSONObject peerKey = findPeerKey(keys, peerShort);
                         if (peerKey == null) throw new IllegalArgumentException("Ключ устройства собеседника не найден");
                         if (!CryptoManager.verifyPeerKey(peerKey.optString("identity_public_key"), peerKey.optString("signed_prekey"), peerKey.optString("signed_prekey_signature"))) {
@@ -692,12 +694,6 @@ public class MainActivity extends Activity {
                 }
             });
         });
-    }
-
-    private String currentUserId(JSONObject ignored) {
-        // The server does not currently include the authenticated user's ID in history.
-        // The message is considered outgoing by its key-id ownership below when possible.
-        return "-1";
     }
 
     private interface PeerKeysCallback { void onResult(JSONArray keys, String error); }
