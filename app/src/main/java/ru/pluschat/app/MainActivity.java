@@ -204,7 +204,7 @@ public class MainActivity extends Activity {
         TextView brand = text("Pluschat", 34, true, white);
         brand.setGravity(Gravity.CENTER);
         body.addView(brand, new LinearLayout.LayoutParams(-1, dp(44)));
-        TextView intro = text("Общение без лишнего.\\nЛюди, чаты и ваши правила.", 15, false, muted);
+        TextView intro = text("Общение без лишнего.\nЛюди, чаты и ваши правила.", 15, false, muted);
         intro.setGravity(Gravity.CENTER);
         intro.setLineSpacing(dp(2), 1f);
         LinearLayout.LayoutParams introParams = new LinearLayout.LayoutParams(-1, dp(48));
@@ -707,8 +707,8 @@ public class MainActivity extends Activity {
                     if (attachmentMeta != null) {
                         long bytes = attachmentMeta.optLong("byte_size", 0);
                         contentText = "📎 " + attachmentMeta.optString("name", "Зашифрованный файл")
-                                + "\\n" + (bytes >= 1024 * 1024 ? String.format(java.util.Locale.ROOT, "%.1f МБ", bytes / 1048576.0)
-                                : Math.max(1, bytes / 1024) + " КБ") + "\\nНажми, чтобы скачать и расшифровать";
+                                + "\n" + (bytes >= 1024 * 1024 ? String.format(java.util.Locale.ROOT, "%.1f МБ", bytes / 1048576.0)
+                                : Math.max(1, bytes / 1024) + " КБ") + "\nНажми, чтобы скачать и расшифровать";
                     }
                     TextView content=text(contentText,15,false,white);
                     content.setMaxWidth((int)(getResources().getDisplayMetrics().widthPixels * 0.72f));
