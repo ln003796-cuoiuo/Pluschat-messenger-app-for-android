@@ -19,7 +19,8 @@ public class MainActivity extends Activity {
     private final int bg = Color.rgb(11, 13, 18), panel = Color.rgb(19, 23, 32), white = Color.rgb(245, 247, 251), muted = Color.rgb(152, 162, 181), accent = Color.rgb(136, 117, 255);
     private LinearLayout root, body, chatList;
     private String page = "auth", registrationStage = "email", phoneChallenge = "", emailChallenge = "", currentChatId = "", currentChatTitle = "";
-    private EditText phoneField, codeField, emailField, emailCodeField, firstNameField, lastNameField, usernameField, passwordField, bioField, birthField, educationField, identifierField, loginPasswordField, messageField, searchField;
+    private EditText phoneField, codeField, emailField, emailCodeField, confirmPasswordField, firstNameField, lastNameField, usernameField, passwordField, bioField, birthField, educationField, identifierField, loginPasswordField, messageField, searchField;
+    private String registrationEmail = "", registrationPassword = "";
     private ArrayList<JSONObject> chats = new ArrayList<>();
     private boolean lightMode = false;
     private android.net.Uri selectedAvatar;
@@ -28,7 +29,7 @@ public class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        showPage(SessionStore.token(this).isEmpty() ? "auth" : "home");
+        showPage(SessionStore.token(this).isEmpty() ? "welcome" : "home");
     }
 
     private int dp(float value) { return (int) (value * getResources().getDisplayMetrics().density + 0.5f); }
@@ -93,7 +94,7 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(lightMode ? Color.WHITE : 0xff0b0d12);
         getWindow().setNavigationBarColor(lightMode ? Color.WHITE : 0xff0b0d12);
         if (android.os.Build.VERSION.SDK_INT >= 23) getWindow().getDecorView().setSystemUiVisibility(lightMode ? View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR : 0);
-        boolean authFlow = target.equals("auth") || target.equals("register") || target.equals("twofa");
+        boolean authFlow = target.equals("welcome") || target.equals("auth") || target.equals("register") || target.equals("twofa");
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
@@ -136,7 +137,8 @@ public class MainActivity extends Activity {
             root.addView(nav, new LinearLayout.LayoutParams(-1, dp(72)));
         }
         setContentView(root);
-        if (target.equals("auth")) authScreen();
+        if (target.equals("welcome")) welcomeScreen();
+        else if (target.equals("auth")) authScreen();
         else if (target.equals("register")) registerScreen();
         else if (target.equals("home")) homeScreen();
         else if (target.equals("chat")) chatScreen();
@@ -174,9 +176,63 @@ public class MainActivity extends Activity {
 
     private void title(String s) { TextView t=text(s, 25, true, lightMode ? Color.BLACK : white); t.setPadding(0, 5, 0, 5); body.addView(t); }
     private void subtitle(String s) { TextView t = text(s, 14, false, muted); t.setPadding(0, 4, 0, 12); body.addView(t); }
+    private void welcomeScreen() {
+        body.setGravity(Gravity.CENTER_HORIZONTAL);
+        body.setPadding(dp(24), dp(78), dp(24), dp(24));
+        LinearLayout mark = new LinearLayout(this);
+        mark.setGravity(Gravity.CENTER);
+        mark.setBackground(shape(0xff171d2b, 60));
+        TextView plus = text("+", 58, false, white);
+        plus.setGravity(Gravity.CENTER);
+        plus.setBackground(shape(0xff292443, 48));
+        mark.addView(plus, new LinearLayout.LayoutParams(dp(76), dp(76)));
+        LinearLayout.LayoutParams markParams = new LinearLayout.LayoutParams(dp(118), dp(118));
+        markParams.bottomMargin = dp(26);
+        body.addView(mark, markParams);
+        TextView brand = text("Pluschat", 34, true, white);
+        brand.setGravity(Gravity.CENTER);
+        body.addView(brand, new LinearLayout.LayoutParams(-1, dp(44)));
+        TextView intro = text("Общение без лишнего.\\nЛюди, чаты и ваши правила.", 15, false, muted);
+        intro.setGravity(Gravity.CENTER);
+        intro.setLineSpacing(dp(2), 1f);
+        LinearLayout.LayoutParams introParams = new LinearLayout.LayoutParams(-1, dp(48));
+        introParams.topMargin = dp(4);
+        introParams.bottomMargin = dp(30);
+        body.addView(intro, introParams);
+        LinearLayout security = new LinearLayout(this);
+        security.setOrientation(LinearLayout.HORIZONTAL);
+        security.setGravity(Gravity.CENTER_VERTICAL);
+        security.setPadding(dp(16), dp(14), dp(16), dp(14));
+        security.setBackground(shape(0xff131720, 20));
+        TextView star = text("✦", 22, true, 0xff77b9ff);
+        star.setGravity(Gravity.CENTER);
+        security.addView(star, new LinearLayout.LayoutParams(dp(42), dp(42)));
+        LinearLayout securityText = new LinearLayout(this);
+        securityText.setOrientation(LinearLayout.VERTICAL);
+        securityText.setPadding(dp(12), 0, 0, 0);
+        securityText.addView(text("Приватность — в основе", 14, true, white));
+        TextView securityDetail = text("Настройки безопасности всегда под рукой", 11, false, muted);
+        securityDetail.setMaxLines(2);
+        securityText.addView(securityDetail);
+        security.addView(securityText, new LinearLayout.LayoutParams(0, -2, 1));
+        LinearLayout.LayoutParams securityParams = new LinearLayout.LayoutParams(-1, dp(84));
+        securityParams.topMargin = dp(2);
+        securityParams.bottomMargin = dp(44);
+        body.addView(security, securityParams);
+        body.addView(button("Создать аккаунт", () -> { registrationStage = "email"; showPage("register"); }));
+        Button loginButton = button("У меня уже есть аккаунт", () -> showPage("auth"));
+        loginButton.setBackground(shape(0xff1a2030, 16));
+        loginButton.setTextColor(white);
+        body.addView(loginButton);
+        TextView terms = text("Продолжая, вы принимаете условия сервиса", 10, false, muted);
+        terms.setGravity(Gravity.CENTER);
+        terms.setPadding(0, dp(18), 0, dp(8));
+        body.addView(terms);
+    }
+
     private void authScreen() {
         title("Войти"); subtitle("Продолжите общение с близкими");
-        TextView emailLabel = text("Электронная почта или телефон", 12, true, muted);
+        TextView emailLabel = text("Электронная почта", 12, true, muted);
         LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(-1, -2); labelParams.setMargins(0, dp(28), 0, dp(2)); body.addView(emailLabel, labelParams);
         identifierField = input("name@example.com", false); body.addView(identifierField);
         TextView passwordLabel = text("Пароль", 12, true, muted);
@@ -194,9 +250,14 @@ public class MainActivity extends Activity {
         if (registrationStage.equals("email")) {
             subtitle("Это займёт всего пару минут");
             emailField = input("Электронная почта", false); body.addView(emailField);
-            body.addView(button("Отправить код на почту", () -> {
-                String email = value(emailField);
+            passwordField = input("Пароль (минимум 10 символов)", true); body.addView(passwordField);
+            confirmPasswordField = input("Повторите пароль", true); body.addView(confirmPasswordField);
+            body.addView(button("Продолжить", () -> {
+                String email = value(emailField), password = value(passwordField), confirm = value(confirmPasswordField);
                 if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) { message("Введи корректный email."); return; }
+                if (password.length() < 10) { message("Пароль должен содержать не менее 10 символов."); return; }
+                if (!password.equals(confirm)) { message("Пароли не совпадают."); return; }
+                registrationEmail = email; registrationPassword = password;
                 request("POST", "auth/registration/email/start", ApiClient.json("email", email), false, (data,error)-> {
                     emailChallenge = data.optString("challenge_id", "");
                     if (emailChallenge.isEmpty()) { message("Сервер не вернул challenge_id."); return; }
@@ -218,7 +279,6 @@ public class MainActivity extends Activity {
             firstNameField = input("Имя", false); body.addView(firstNameField);
             lastNameField = input("Фамилия", false); body.addView(lastNameField);
             usernameField = input("@username", false); body.addView(usernameField);
-            passwordField = input("Пароль (не менее 10 символов)", true); body.addView(passwordField);
             bioField = input("Описание профиля (необязательно)", false); body.addView(bioField);
             birthField = input("Дата рождения YYYY-MM-DD (необязательно)", false); body.addView(birthField);
             educationField = input("Учёба / работа (необязательно)", false); body.addView(educationField);
@@ -228,10 +288,10 @@ public class MainActivity extends Activity {
         body.addView(button("Отмена", () -> showPage("auth")));
     }
     private void completeRegistration() {
-        String fn=value(firstNameField), ln=value(lastNameField), un=value(usernameField), pw=value(passwordField);
+        String fn=value(firstNameField), ln=value(lastNameField), un=value(usernameField), pw=registrationPassword;
         if (fn.isEmpty() || ln.isEmpty() || un.isEmpty() || pw.length()<10) { message("Заполни имя, фамилию, username и пароль от 10 символов."); return; }
         JSONObject payload=ApiClient.json("challenge_id", phoneChallenge, "email_challenge_id", emailChallenge,
-            "email", emailField == null ? "" : value(emailField), "password", pw, "first_name", fn, "last_name", ln,
+            "email", registrationEmail, "password", pw, "first_name", fn, "last_name", ln,
             "username", un.replaceFirst("^@", ""), "bio", value(bioField), "birth_date", value(birthField), "education", value(educationField));
         request("POST", "auth/registration/complete", payload, false, (data,error)-> {
             if (!saveSession(data)) return;
