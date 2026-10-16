@@ -40,6 +40,14 @@ public final class SessionStore {
         prefs(context).edit().putString("access_token", accessToken)
             .putString("refresh_token", refreshToken).apply();
     }
+    public static String cryptoGet(Context context, String key) {
+        try { return prefs(context).getString("crypto_" + key, ""); }
+        catch (Exception e) { return ""; }
+    }
+    public static void cryptoPut(Context context, String key, String value) throws Exception {
+        prefs(context).edit().putString("crypto_" + key, value).apply();
+    }
+
     public static void clear(Context context) {
         try { SharedPreferences p = prefs(context); String device = p.getString("device_key", ""); p.edit().clear().putString("device_key", device).apply(); } catch (Exception ignored) {}
     }
