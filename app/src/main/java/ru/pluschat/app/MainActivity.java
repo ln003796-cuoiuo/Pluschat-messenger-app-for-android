@@ -1022,6 +1022,152 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void pickAttachment() {
+        android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(android.content.Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        startActivityForResult(android.content.Intent.createChooser(intent, "Выбрать файл для шифрования"), 7102);
+    }
+
+    private String displayName(android.net.Uri uri) {
+        try (android.database.Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
+                if (index >= 0) {
+                    String value = cursor.getString(index);
+                    if (value != null && !value.trim().isEmpty()) return value.replace('\n', '_').replace('\r', '_');
+                }
+            }
+        } catch (Exception ignored) {}
+        return "encrypted-file.bin";
+    }
+
+    private byte[] readAttachmentBytes(android.net.Uri uri) throws Exception {
+        try (java.io.InputStream in = getContentResolver().openInputStream(uri);
+             java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
+            if (in == null) throw new java.io.IOException("Cannot read file");
+            byte[] buffer = new byte[8192]; int n; int total = 0;
+            while ((n = in.read(buffer)) != -1) {
+                total += n;
+                if (total > 25 * 1024 * 1024) throw new java.io.IOException("File exceeds 25 MB");
+                out.write(buffer, 0, n);
+            }
+            return out.toByteArray();
+        }
+    }
+
+    private void sendEncryptedAttachment(android.net.Uri uri) {
+        if (currentChatId.isEmpty() || currentPeerId.isEmpty()) {
+            message("Сначала открой личную переписку.");
+            return;
+        }
+        final String conversationId = currentChatId;
+        final String peerId = currentPeerId;
+        final String originalName = displayName(uri);
+        String mime = getContentResolver().getType(uri);
+        final String originalMime = mime == null ? "application/octet-stream" : mime;
+        final byte[] plaintext;
+        try {
+            plaintext = readAttachmentBytes(uri);
+            if (plaintext.length == 0) { message("Пустые файлы отправлять нельзя."); return; }
+        } catch (Exception e) {
+            message("Файл не удалось прочитать. Максимальный размер — 25 МБ.");
+            return;
+        }
+        registerCryptoKeys(() -> fetchPeerKeys(peerId, (keys, keyError) -> {
+            if (keyError != null) { message(keyError); return; }
+            try {
+                JSONObject peerKey = keys.optJSONObject(0);
+                if (peerKey == null || !CryptoManager.verifyAndPinPeerKey(this, peerId, peerKey)) {
+                    message("Не удалось проверить ключ собеседника.");
+                    return;
+                }
+                byte[] encryptedFile = CryptoManager.encryptFile(this, conversationId, plaintext,
+                        peerKey.optString("key_id"), peerKey.optString("signed_prekey"));
+                JSONObject pending = ApiClient.json("type", "attachment_pending");
+                JSONObject envelope = CryptoManager.encrypt(this, conversationId, pending.toString(),
+                        peerKey.optString("key_id"), peerKey.optString("signed_prekey"));
+                JSONObject messagePayload = ApiClient.json("client_message_id", java.util.UUID.randomUUID().toString(),
+                        "type", "file", "body", envelope.toString());
+                ApiClient.request("POST", "conversations/" + conversationId + "/messages", messagePayload,
+                        SessionStore.token(this), (created, createError) -> {
+                    JSONObject savedMessage = created.optJSONObject("message");
+                    String messageId = savedMessage == null ? "" : savedMessage.optString("id", "");
+                    if (createError != null || !created.optBoolean("ok", false) || messageId.isEmpty()) {
+                        message("Не удалось создать зашифрованное сообщение для вложения.");
+                        return;
+                    }
+                    ApiClient.uploadEncryptedFile(encryptedFile, "messages/" + messageId + "/attachments",
+                            SessionStore.token(this), (uploaded, uploadError) -> {
+                        JSONObject attachment = uploaded.optJSONObject("attachment");
+                        String attachmentId = attachment == null ? "" : attachment.optString("id", "");
+                        if (uploadError != null || !uploaded.optBoolean("ok", false) || attachmentId.isEmpty()) {
+                            ApiClient.request("POST", "messages/" + messageId + "/delete",
+                                    ApiClient.json("for_everyone", true), SessionStore.token(this), (ignored, deleteError) -> {});
+                            message("Не удалось загрузить зашифрованный файл.");
+                            return;
+                        }
+                        try {
+                            JSONObject metadata = ApiClient.json("type", "file", "attachment_id", attachmentId,
+                                    "name", originalName, "mime_type", originalMime, "byte_size", plaintext.length);
+                            JSONObject finalEnvelope = CryptoManager.encrypt(this, conversationId, metadata.toString(),
+                                    peerKey.optString("key_id"), peerKey.optString("signed_prekey"));
+                            ApiClient.request("POST", "messages/" + messageId + "/edit",
+                                    ApiClient.json("body", finalEnvelope.toString()), SessionStore.token(this), (edited, editError) -> {
+                                if (editError != null || !edited.optBoolean("ok", false)) {
+                                    message("Файл загружен в зашифрованном виде, но карточку вложения не удалось обновить.");
+                                    return;
+                                }
+                                message("Файл зашифрован и отправлен.");
+                                if (conversationId.equals(currentChatId) && "chat".equals(page)) {
+                                    LinearLayout history = historyView();
+                                    if (history != null) refreshChatHistory(history);
+                                }
+                            });
+                        } catch (Exception e) {
+                            message("Не удалось подготовить карточку вложения.");
+                        }
+                    });
+                });
+            } catch (Exception e) {
+                message("Не удалось зашифровать файл на устройстве.");
+            }
+        }));
+    }
+
+    private LinearLayout historyView() {
+        if (body != null && body.getChildCount() > 1) {
+            for (int i = 0; i < body.getChildCount(); i++) {
+                View child = body.getChildAt(i);
+                if (child instanceof ScrollView) {
+                    View inner = ((ScrollView) child).getChildAt(0);
+                    if (inner instanceof LinearLayout) return (LinearLayout) inner;
+                }
+            }
+        }
+        return null;
+    }
+
+    private void downloadEncryptedAttachment(String conversationId, String attachmentId, String name, String mime,
+                                             String peerDeviceHash, String peerSignedPrekey) {
+        ApiClient.downloadBytes("attachments/" + android.net.Uri.encode(attachmentId), SessionStore.token(this), (encrypted, error) -> {
+            if (error != null || encrypted == null) { message(error == null ? "Не удалось скачать файл." : error); return; }
+            try {
+                byte[] plaintext = CryptoManager.decryptFile(this, conversationId, encrypted, peerDeviceHash, peerSignedPrekey);
+                pendingDecryptedFile = plaintext;
+                pendingDecryptedName = name == null || name.isEmpty() ? "download.bin" : name;
+                pendingDecryptedMime = mime == null || mime.isEmpty() ? "application/octet-stream" : mime;
+                android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_CREATE_DOCUMENT);
+                intent.addCategory(android.content.Intent.CATEGORY_OPENABLE);
+                intent.setType(pendingDecryptedMime);
+                intent.putExtra(android.content.Intent.EXTRA_TITLE, pendingDecryptedName);
+                startActivityForResult(intent, 7103);
+            } catch (Exception e) {
+                message("Не удалось расшифровать файл. Проверь ключи и целостность вложения.");
+            }
+        });
+    }
+
     private void openCommunity(boolean channel) { android.content.Intent intent = new android.content.Intent(this, CommunityActivity.class); intent.putExtra("channel", channel); startActivity(intent); }
 
     private void logout() {
