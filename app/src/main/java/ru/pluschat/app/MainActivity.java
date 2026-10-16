@@ -134,7 +134,7 @@ public class MainActivity extends Activity {
             nav.setBackgroundColor(lightMode ? Color.WHITE : 0xff0f1219);
             nav.addView(navItem("⌂", "Чаты", "home", target.equals("home") || target.equals("chat") || target.equals("search")));
             nav.addView(navItem("♙", "Контакты", "contacts", target.equals("contacts")));
-            nav.addView(navItem("◉", "Звонки", "calls", target.equals("calls")));
+            nav.addView(navItem("◉", "Сообщества", "communities", target.equals("communities")));
             nav.addView(navItem("☺", "Профиль", "profile", target.equals("profile") || target.equals("settings") || target.equals("permissions") || target.equals("privacy") || target.equals("appearance") || target.equals("chat_info") || target.startsWith("twofa_")));
             root.addView(nav, new LinearLayout.LayoutParams(-1, dp(72)));
         }
