@@ -610,7 +610,14 @@ public class MainActivity extends Activity {
             String clientId = java.util.UUID.randomUUID().toString();
             request("POST", "conversations/" + currentChatId + "/messages",
                 ApiClient.json("client_message_id", clientId, "type", "text", "body", msg), true,
-                (data, error) -> { messageField.setText(""); refreshChatHistory(history); });
+                (data, error) -> {
+                    if (error != null || !data.optBoolean("ok", false)) {
+                        message(error != null ? error : "Сервер не принял сообщение. Проверь формат шифрования и подключение.");
+                        return;
+                    }
+                    messageField.setText("");
+                    refreshChatHistory(history);
+                });
         });
         body.addView(composer, new LinearLayout.LayoutParams(-1, -2));
 
@@ -669,7 +676,7 @@ public class MainActivity extends Activity {
         body.addView(button("Поиск",()->{
             results.removeAllViews();String query=value(q);
             if(query.trim().length()<2){results.addView(text("Введите минимум 2 символа для поиска.",14,false,muted));return;}
-            request("GET","users/search?q="+android.net.Uri.encode(query.trim()),null,true,(data,error)->{
+            request("GET","search?q="+android.net.Uri.encode(query.trim()),null,true,(data,error)->{
                 JSONArray arr=data.optJSONArray("users");if(arr==null)arr=data.optJSONArray("data");
                 if(arr==null||arr.length()==0){results.addView(text("Пользователи не найдены или API ещё не подключён.",14,false,muted));return;}
                 for(int i=0;i<arr.length();i++){JSONObject u=arr.optJSONObject(i);if(u==null)continue;
