@@ -151,17 +151,17 @@ public final class CryptoManager {
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, "AES"), new GCMParameterSpec(128, nonce));
         cipher.updateAAD(fileAad(conversationId, ownFull, recipientFull));
-        return concat(nonce, cipher.doFinal(plaintext));
+        return concat(new byte[] { 0x50, 0x43, 0x46, 0x31 }, concat(nonce, cipher.doFinal(plaintext)));
     }
 
     public static byte[] decryptFile(Context context, String conversationId, byte[] encrypted,
                                      String peerDeviceHash, String peerSignedPrekey) throws Exception {
-        if (encrypted == null || encrypted.length < 28) throw new IllegalArgumentException("Invalid encrypted attachment");
+        if (encrypted == null || encrypted.length < 32 || encrypted[0] != 0x50 || encrypted[1] != 0x43 || encrypted[2] != 0x46 || encrypted[3] != 0x31) throw new IllegalArgumentException("Invalid encrypted attachment");
         LocalKeys local = ensureLocalKeys(context);
         String ownFull = local.deviceHash;
         String peerFull = peerDeviceHash.toLowerCase(java.util.Locale.ROOT);
-        byte[] nonce = java.util.Arrays.copyOfRange(encrypted, 0, 12);
-        byte[] ciphertext = java.util.Arrays.copyOfRange(encrypted, 12, encrypted.length);
+        byte[] nonce = java.util.Arrays.copyOfRange(encrypted, 4, 16);
+        byte[] ciphertext = java.util.Arrays.copyOfRange(encrypted, 16, encrypted.length);
         byte[] shared = sharedSecret(SessionStore.cryptoGet(context, "signed_prekey_private"), peerSignedPrekey);
         byte[] key = deriveMessageKey(shared, conversationId, ownFull, peerFull);
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
