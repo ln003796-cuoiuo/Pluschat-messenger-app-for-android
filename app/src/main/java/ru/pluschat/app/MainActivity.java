@@ -1164,16 +1164,17 @@ public class MainActivity extends Activity {
         ApiClient.request("GET", path, null, SessionStore.token(this), (data, error) -> {
             JSONArray messages = data.optJSONArray("messages");
             if (error != null || messages == null) { message(error == null ? "Не удалось загрузить историю." : error); callback.onResult(new ArrayList<>()); return; }
-            String nextBefore = null;
+            long oldestId = Long.MAX_VALUE;
             for (int i = 0; i < messages.length(); i++) {
                 JSONObject item = messages.optJSONObject(i);
                 if (item == null) continue;
                 String id = item.optString("id", "");
                 if (!id.isEmpty()) {
                     ids.add(id);
-                    if (nextBefore == null || id.compareTo(nextBefore) < 0) nextBefore = id;
+                    try { oldestId = Math.min(oldestId, Long.parseLong(id)); } catch (NumberFormatException ignored) {}
                 }
             }
+            String nextBefore = oldestId == Long.MAX_VALUE ? null : String.valueOf(oldestId);
             if (messages.length() >= 100 && nextBefore != null && !nextBefore.equals(before)) {
                 loadMessageIds(conversationId, nextBefore, ids, callback);
             } else callback.onResult(ids);
