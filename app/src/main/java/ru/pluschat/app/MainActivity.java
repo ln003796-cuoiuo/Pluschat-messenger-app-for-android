@@ -164,6 +164,7 @@ public class MainActivity extends Activity {
         else if (target.equals("privacy")) privacyScreen();
         else if (target.equals("appearance")) appearanceScreen();
         else if (target.equals("chat_info")) chatInfoScreen();
+        else if (target.equals("chat_search")) chatSearchScreen();
         else if (target.equals("twofa")) twoFactorScreen();
         else if (target.equals("twofa_setup")) twoFactorSetupScreen();
         else if (target.equals("permissions")) permissionsScreen();
@@ -1091,6 +1092,106 @@ public class MainActivity extends Activity {
         body.addView(button("Активные устройства", () -> showPage("devices")));
         body.addView(button("Разрешения Android", () -> showPage("permissions")));
         body.addView(button("Назад к настройкам", () -> showPage("settings")));
+    }
+
+    private void chatSearchScreen() {
+        title("Поиск в переписке");
+        subtitle("Поиск выполняется на устройстве по расшифрованным сообщениям.");
+        EditText query = input("Слово или фраза", false);
+        body.addView(query);
+        LinearLayout results = new LinearLayout(this);
+        results.setOrientation(LinearLayout.VERTICAL);
+        body.addView(results);
+        body.addView(button("Искать", () -> {
+            String term = value(query).trim().toLowerCase(java.util.Locale.ROOT);
+            results.removeAllViews();
+            if (term.isEmpty()) { message("Введи текст для поиска."); return; }
+            if (currentChatId.isEmpty() || currentPeerId.isEmpty()) { message("Не удалось определить переписку."); return; }
+            final String conversationId = currentChatId;
+            fetchPeerKeys(currentPeerId, (keys, keyError) -> {
+                if (keyError != null) { message(keyError); return; }
+                request("GET", "conversations/" + conversationId + "/messages?limit=100", null, true, (data, error) -> {
+                    JSONArray messages = data.optJSONArray("messages");
+                    if (messages == null || messages.length() == 0) {
+                        results.addView(text("Сообщений не найдено.", 14, false, muted));
+                        return;
+                    }
+                    String ownShort = CryptoManager.deviceHash(this).substring(0, 32);
+                    int found = 0;
+                    for (int i = 0; i < messages.length(); i++) {
+                        JSONObject item = messages.optJSONObject(i);
+                        if (item == null) continue;
+                        try {
+                            JSONObject envelope = new JSONObject(item.optString("body", ""));
+                            String[] pair = envelope.optString("key_id").split(":", -1);
+                            if (pair.length != 2) continue;
+                            String peerShort = pair[0].equals(ownShort) ? pair[1] : pair[0];
+                            JSONObject peerKey = findPeerKey(keys, peerShort);
+                            if (peerKey == null || !CryptoManager.verifyAndPinPeerKey(this, currentPeerId, peerKey)) continue;
+                            String plain = CryptoManager.decrypt(this, conversationId, envelope.toString(),
+                                    peerKey.optString("key_id"), peerKey.optString("signed_prekey"));
+                            if (plain.toLowerCase(java.util.Locale.ROOT).contains(term)) {
+                                String snippet = plain.length() > 140 ? plain.substring(0, 140) + "…" : plain;
+                                results.addView(button(snippet, () -> showPage("chat")));
+                                found++;
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                    if (found == 0) results.addView(text("Совпадений в последних 100 сообщениях нет.", 14, false, muted));
+                });
+            });
+        }));
+        body.addView(button("Назад в переписку", () -> showPage("chat")));
+    }
+
+    private void clearCurrentChatHistory() {
+        if (currentChatId.isEmpty()) { message("Переписка не выбрана."); return; }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Скрыть историю?")
+                .setMessage("Сообщения будут скрыты только у тебя. У собеседника история останется.")
+                .setNegativeButton("Отмена", (dialog, which) -> dialog.dismiss())
+                .setPositiveButton("Скрыть", (dialog, which) -> loadMessageIds(currentChatId, null, new ArrayList<>(), ids -> {
+                    if (ids.isEmpty()) { message("История уже пуста."); return; }
+                    hideMessageIds(currentChatId, ids, 0, 0);
+                }))
+                .show();
+    }
+
+    private interface MessageIdsCallback { void onResult(ArrayList<String> ids); }
+
+    private void loadMessageIds(String conversationId, String before, ArrayList<String> ids, MessageIdsCallback callback) {
+        String path = "conversations/" + conversationId + "/messages?limit=100" + (before == null ? "" : "&before=" + android.net.Uri.encode(before));
+        ApiClient.request("GET", path, null, SessionStore.token(this), (data, error) -> {
+            JSONArray messages = data.optJSONArray("messages");
+            if (error != null || messages == null) { message(error == null ? "Не удалось загрузить историю." : error); callback.onResult(new ArrayList<>()); return; }
+            String nextBefore = null;
+            for (int i = 0; i < messages.length(); i++) {
+                JSONObject item = messages.optJSONObject(i);
+                if (item == null) continue;
+                String id = item.optString("id", "");
+                if (!id.isEmpty()) {
+                    ids.add(id);
+                    if (nextBefore == null || id.compareTo(nextBefore) < 0) nextBefore = id;
+                }
+            }
+            if (messages.length() >= 100 && nextBefore != null && !nextBefore.equals(before)) {
+                loadMessageIds(conversationId, nextBefore, ids, callback);
+            } else callback.onResult(ids);
+        });
+    }
+
+    private void hideMessageIds(String conversationId, ArrayList<String> ids, int index, int failures) {
+        if (index >= ids.size()) {
+            message(failures == 0 ? "История скрыта только у тебя." : "История скрыта частично. Не удалось скрыть: " + failures);
+            if (conversationId.equals(currentChatId) && "chat".equals(page)) {
+                LinearLayout history = historyView();
+                if (history != null) refreshChatHistory(history);
+            }
+            return;
+        }
+        ApiClient.request("POST", "messages/" + ids.get(index) + "/delete",
+                ApiClient.json("for_everyone", false), SessionStore.token(this), (data, error) ->
+                    hideMessageIds(conversationId, ids, index + 1, failures + (error == null && data.optBoolean("ok", false) ? 0 : 1)));
     }
 
     private void chatInfoScreen() {
