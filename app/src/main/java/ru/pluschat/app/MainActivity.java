@@ -132,7 +132,7 @@ public class MainActivity extends Activity {
             nav.setBackgroundColor(lightMode ? Color.WHITE : 0xff0f1219);
             nav.addView(navItem("⌂", "Чаты", "home", target.equals("home") || target.equals("chat") || target.equals("search")));
             nav.addView(navItem("♙", "Контакты", "contacts", target.equals("contacts")));
-            nav.addView(navItem("✦", "Сообщества", "communities", target.equals("communities")));
+            nav.addView(navItem("◉", "Звонки", "calls", target.equals("calls")));
             nav.addView(navItem("☺", "Профиль", "profile", target.equals("profile") || target.equals("settings") || target.equals("permissions") || target.equals("privacy") || target.equals("appearance") || target.equals("chat_info") || target.startsWith("twofa_")));
             root.addView(nav, new LinearLayout.LayoutParams(-1, dp(72)));
         }
@@ -144,6 +144,7 @@ public class MainActivity extends Activity {
         else if (target.equals("chat")) chatScreen();
         else if (target.equals("search")) searchScreen();
         else if (target.equals("contacts")) contactsScreen();
+        else if (target.equals("calls")) callsScreen();
         else if (target.equals("notifications")) notificationsScreen();
         else if (target.equals("profile")) profileScreen();
         else if (target.equals("settings")) settingsScreen();
@@ -348,21 +349,28 @@ public class MainActivity extends Activity {
     }
 
     private void homeScreen() {
-        body.setPadding(18, 18, 18, 22);
+        body.setPadding(dp(18), dp(18), dp(18), dp(22));
         LinearLayout titleRow = row();
         LinearLayout titleStack = new LinearLayout(this);
         titleStack.setOrientation(LinearLayout.VERTICAL);
         titleStack.addView(text("Чаты", 29, true, white));
         titleStack.addView(text("Твои разговоры в одном месте", 12, false, muted));
         titleRow.addView(titleStack, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView newChat = text("+", 28, false, Color.WHITE);
+        TextView searchButton = text("⌕", 24, false, Color.WHITE);
+        searchButton.setGravity(Gravity.CENTER);
+        searchButton.setBackground(shape(0xff171b24, 15));
+        searchButton.setOnClickListener(v -> showPage("search"));
+        LinearLayout.LayoutParams searchButtonParams = new LinearLayout.LayoutParams(dp(38), dp(38));
+        searchButtonParams.setMargins(0, 0, dp(8), 0);
+        titleRow.addView(searchButton, searchButtonParams);
+        TextView newChat = text("+", 26, false, Color.WHITE);
         newChat.setGravity(Gravity.CENTER);
-        newChat.setBackground(shape(0xff6f5bea, 18));
-        titleRow.addView(newChat, new LinearLayout.LayoutParams(48, 48));
+        newChat.setBackground(shape(0xff6f5bea, 15));
+        titleRow.addView(newChat, new LinearLayout.LayoutParams(dp(38), dp(38)));
         newChat.setOnClickListener(v -> showPage("search"));
         body.addView(titleRow);
         LinearLayout searchRow = row();
-        searchRow.setPadding(14, 0, 12, 0);
+        searchRow.setPadding(dp(14), 0, dp(12), 0);
         searchRow.setBackground(shape(0xff171b24, 15));
         TextView searchIcon = text("⌕", 24, false, 0xffa9b2c4);
         searchRow.addView(searchIcon);
@@ -374,14 +382,14 @@ public class MainActivity extends Activity {
         searchField.setTextColor(0xfff5f7fb);
         searchField.setBackgroundColor(Color.TRANSPARENT);
         searchField.setPadding(10, 0, 0, 0);
-        searchRow.addView(searchField, new LinearLayout.LayoutParams(0, 52, 1));
+        searchRow.addView(searchField, new LinearLayout.LayoutParams(0, dp(52), 1));
         TextView go = text("→", 22, true, 0xffb9adff);
         go.setGravity(Gravity.CENTER);
-        searchRow.addView(go, new LinearLayout.LayoutParams(34, 52));
+        searchRow.addView(go, new LinearLayout.LayoutParams(dp(34), dp(52)));
         searchRow.setOnClickListener(v -> showPage("search"));
         go.setOnClickListener(v -> showPage("search"));
-        LinearLayout.LayoutParams searchParams = new LinearLayout.LayoutParams(-1, 52);
-        searchParams.setMargins(0, 18, 0, 16);
+        LinearLayout.LayoutParams searchParams = new LinearLayout.LayoutParams(-1, dp(52));
+        searchParams.setMargins(0, dp(18), 0, dp(16));
         body.addView(searchRow, searchParams);
 
         LinearLayout filters = row();
@@ -403,24 +411,7 @@ public class MainActivity extends Activity {
         chatList.setOrientation(LinearLayout.VERTICAL);
         body.addView(chatList, new LinearLayout.LayoutParams(-1, -2));
 
-        LinearLayout quick = row();
-        quick.setPadding(14, 14, 14, 14);
-        quick.setBackground(shape(0xff151925, 18));
-        TextView groupIcon = text("✦", 23, true, 0xffb9adff);
-        groupIcon.setGravity(Gravity.CENTER);
-        quick.addView(groupIcon, new LinearLayout.LayoutParams(40, 44));
-        LinearLayout quickText = new LinearLayout(this);
-        quickText.setOrientation(LinearLayout.VERTICAL);
-        quickText.setPadding(10, 0, 0, 0);
-        quickText.addView(text("Сообщества", 14, true, white));
-        quickText.addView(text("Группы и каналы", 11, false, muted));
-        quick.addView(quickText, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView arrow = text("›", 26, false, muted);
-        quick.addView(arrow);
-        quick.setOnClickListener(v -> openCommunity(false));
-        LinearLayout.LayoutParams qp = new LinearLayout.LayoutParams(-1, -2);
-        qp.setMargins(0, 18, 0, 10);
-        body.addView(quick, qp);
+        
         loadChats();
     }
 
@@ -609,6 +600,30 @@ public class MainActivity extends Activity {
             });
         }));
         body.addView(button("Назад",()->showPage("home")));
+    }
+
+    private void callsScreen() {
+        title("Звонки");
+        subtitle("Аудио- и видеозвонки Pluschat");
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setGravity(Gravity.CENTER_HORIZONTAL);
+        card.setPadding(dp(22), dp(28), dp(22), dp(24));
+        card.setBackground(shape(0xff131720, 22));
+        TextView callIcon = text("◉", 38, true, 0xff8875ff);
+        callIcon.setGravity(Gravity.CENTER);
+        card.addView(callIcon, new LinearLayout.LayoutParams(-1, dp(58)));
+        TextView emptyTitle = text("Здесь будут ваши звонки", 17, true, white);
+        emptyTitle.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams emptyTitleParams = new LinearLayout.LayoutParams(-1, -2);
+        emptyTitleParams.topMargin = dp(12);
+        card.addView(emptyTitle, emptyTitleParams);
+        TextView emptyDetail = text("Выберите контакт, чтобы начать разговор.", 13, false, muted);
+        emptyDetail.setGravity(Gravity.CENTER);
+        emptyDetail.setPadding(0, dp(8), 0, dp(18));
+        card.addView(emptyDetail);
+        card.addView(button("Найти контакт", () -> showPage("contacts")));
+        body.addView(card);
     }
 
     private void contactsScreen() {
