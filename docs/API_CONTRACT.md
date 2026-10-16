@@ -1,8 +1,8 @@
-# Pluschat Gateway API contract v1
+# Pluschat API contract v1
 
-**Gateway base:** `https://xn--n1aabel.xn--80avljg2a1c.xn--p1ai/api/v1/`
+**Main host API base:** `https://xn--80avljg2a1c.xn--p1ai/api/v1/`
 
-The Android client calls only this gateway. The gateway validates inputs and forwards authorized operations to the main host over HTTPS. The APK must never contain database credentials or gateway-to-main-host secrets.
+The Android client connects directly to the main PHP host over HTTPS. The APK must never contain database credentials or server-side secrets.
 
 ## Common rules
 - JSON UTF-8 requests/responses, except multipart uploads.
@@ -63,7 +63,7 @@ The Android client calls only this gateway. The gateway validates inputs and for
 
 ## Client behavior
 - Do not claim an action succeeded before server confirmation.
-- If the gateway is unavailable, show a useful connection error and preserve drafts.
+- If the main host is unavailable, show a useful connection error and preserve drafts.
 - Use pagination for history and lists; deduplicate messages using client_message_id.
 - Use push notifications when server-side push is configured; while app is open, refresh messages using polling until a realtime service exists.
-- This document is the integration contract. The PHP gateway currently implements email-code registration, password login, token refresh/revocation, profile read/update, user search, direct chat creation, and text-message history/send. Import `database/schema.sql`, deploy the PHP gateway, and configure `config.php` from `config.example.php`. Email delivery must work through PHP `mail()` on the host. SMS, avatar uploads, push delivery, and 2FA still require provider/endpoint setup.
+- This document is the integration contract. The PHP API currently implements email-code registration, password login, token refresh/revocation, profile read/update, user search, direct chat creation, and text-message history/send. Import `database/schema.sql`, deploy the PHP gateway, and configure `config.php` from `config.example.php`. Email delivery must work through PHP `mail()` on the host. SMS, avatar uploads, push delivery, and 2FA still require provider/endpoint setup.
