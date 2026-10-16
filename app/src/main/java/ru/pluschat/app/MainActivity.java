@@ -901,7 +901,7 @@ public class MainActivity extends Activity {
         body.addView(button("Внешний вид  ›", () -> showPage("appearance")));
         body.addView(button("Приватность и безопасность  ›", () -> showPage("privacy")));
         body.addView(button("Уведомления", () -> showPage("notifications")));
-        body.addView(button("Настроить двухэтапную аутентификацию", () -> showPage("twofa_setup")));
+        body.addView(text("Двухэтапная аутентификация обязательна. Изменить или отключить её без повторной проверки личности нельзя.", 12, false, muted));
         body.addView(button("Активные устройства", () -> message("Управление сессиями появится после подключения API устройств.")));
         body.addView(button("Разрешения Android", () -> showPage("permissions")));
         body.addView(button("Выйти из аккаунта", this::logout));
