@@ -18,7 +18,7 @@ import java.util.ArrayList;
 public class MainActivity extends Activity {
     private final int bg = Color.rgb(11, 13, 18), panel = Color.rgb(19, 23, 32), white = Color.rgb(245, 247, 251), muted = Color.rgb(152, 162, 181), accent = Color.rgb(136, 117, 255);
     private LinearLayout root, body, chatList;
-    private String page = "auth", registrationStage = "email", phoneChallenge = "", emailChallenge = "", currentChatId = "", currentChatTitle = "";
+    private String page = "auth", registrationStage = "email", phoneChallenge = "", emailChallenge = "", currentChatId = "", currentChatTitle = "", currentPeerId = "";
     private EditText phoneField, codeField, emailField, emailCodeField, confirmPasswordField, firstNameField, lastNameField, usernameField, passwordField, bioField, birthField, educationField, identifierField, loginPasswordField, messageField, searchField;
     private String registrationEmail = "", registrationPassword = "";
     private ArrayList<JSONObject> chats = new ArrayList<>();
@@ -29,7 +29,12 @@ public class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        showPage(SessionStore.token(this).isEmpty() ? "welcome" : "home");
+        if (SessionStore.token(this).isEmpty()) {
+            showPage("welcome");
+        } else {
+            showPage("home");
+            registerCryptoKeys(null);
+        }
     }
 
     private int dp(float value) { return (int) (value * getResources().getDisplayMetrics().density + 0.5f); }
@@ -328,7 +333,7 @@ public class MainActivity extends Activity {
         if(id.isEmpty()||pw.isEmpty()){message("Введи телефон/email и пароль.");return;}
         request("POST","auth/login",ApiClient.json("login",id,"password",pw,"device_key",SessionStore.deviceKey(this),"device_name",android.os.Build.MANUFACTURER+" "+android.os.Build.MODEL,"platform","android"),false,(data,error)->{
             if(data.optBoolean("requires_2fa",false)){ pending2fa=data.optString("challenge_id",""); showPage("twofa"); return; }
-            if(saveSession(data)) showPage("home");
+            if(saveSession(data)) registerCryptoKeys(() -> showPage("home"));
         });
     }
     private String pending2fa="";
@@ -536,6 +541,7 @@ public class MainActivity extends Activity {
                     item.setOnClickListener(v -> {
                         currentChatId = id;
                         currentChatTitle = chatDisplayName;
+                        currentPeerId = peer == null ? "" : peer.optString("id", "");
                         showPage("chat");
                     });
                     chatList.addView(item, itemParams);
@@ -607,17 +613,11 @@ public class MainActivity extends Activity {
         send.setOnClickListener(v -> {
             String msg = value(messageField);
             if (msg.isEmpty()) return;
-            String clientId = java.util.UUID.randomUUID().toString();
-            request("POST", "conversations/" + currentChatId + "/messages",
-                ApiClient.json("client_message_id", clientId, "type", "text", "body", msg), true,
-                (data, error) -> {
-                    if (error != null || !data.optBoolean("ok", false)) {
-                        message(error != null ? error : "Сервер не принял сообщение. Проверь формат шифрования и подключение.");
-                        return;
-                    }
-                    messageField.setText("");
-                    refreshChatHistory(history);
-                });
+            if (currentChatId.isEmpty() || currentPeerId.isEmpty()) {
+                message("Не удалось определить собеседника. Открой переписку заново.");
+                return;
+            }
+            sendEncryptedMessage(msg, history);
         });
         body.addView(composer, new LinearLayout.LayoutParams(-1, -2));
 
@@ -632,42 +632,135 @@ public class MainActivity extends Activity {
         chatHandler.postDelayed(chatPoll, 5000);
     }
     private void refreshChatHistory(LinearLayout history) {
-        if (currentChatId.isEmpty()) {
+        if (currentChatId.isEmpty() || currentPeerId.isEmpty()) {
             history.removeAllViews();
-            history.addView(text("Открой чат из списка.", 14, false, muted));
+            history.addView(text("Открой переписку из списка чатов, чтобы загрузить ключи шифрования.", 14, false, muted));
             return;
         }
-        request("GET","conversations/"+currentChatId+"/messages?limit=50",null,true,(data,error)->{
+        fetchPeerKeys(currentPeerId, (keys, keyError) -> {
             if (!"chat".equals(page)) return;
-            JSONArray arr=data.optJSONArray("messages");
-            if(arr==null)arr=data.optJSONArray("data");
-            history.removeAllViews();
-            if(arr==null || arr.length()==0) {
-                TextView empty=text("Пока нет сообщений.\nНапиши первым 👋",15,false,muted);
-                empty.setGravity(Gravity.CENTER);
-                empty.setPadding(dp(18), dp(30), dp(18), dp(30));
-                history.addView(empty);
+            if (keyError != null) {
+                history.removeAllViews();
+                history.addView(text("Не удалось получить ключи собеседника: " + keyError, 14, false, muted));
                 return;
             }
-            for(int i=0;i<arr.length();i++) {
-                JSONObject m=arr.optJSONObject(i);
-                if(m==null) continue;
-                boolean mine=m.optBoolean("is_mine", false);
-                LinearLayout bubble=new LinearLayout(this);
-                bubble.setOrientation(LinearLayout.VERTICAL);
-                bubble.setPadding(dp(14), dp(10), dp(14), dp(10));
-                bubble.setBackground(shape(mine ? 0xff5142a6 : 0xff171b24, 18));
-                TextView sender=text(m.optString("sender_name", mine ? "Вы" : "Участник"),12,true,mine ? 0xffe5dcff : 0xffb9adff);
-                TextView content=text(m.optString("body",""),15,false,white);
-                content.setMaxWidth((int)(getResources().getDisplayMetrics().widthPixels * 0.72f));
-                bubble.addView(sender);
-                bubble.addView(content);
-                LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(-2,-2);
-                params.setMargins(0,dp(4),0,dp(4));
-                params.gravity=mine ? Gravity.RIGHT : Gravity.LEFT;
-                history.addView(bubble,params);
-            }
+            request("GET","conversations/"+currentChatId+"/messages?limit=50",null,true,(data,error)->{
+                if (!"chat".equals(page)) return;
+                JSONArray arr=data.optJSONArray("messages");
+                if(arr==null)arr=data.optJSONArray("data");
+                history.removeAllViews();
+                if(arr==null || arr.length()==0) {
+                    TextView empty=text("Пока нет сообщений.\nНапиши первым 👋",15,false,muted);
+                    empty.setGravity(Gravity.CENTER);
+                    empty.setPadding(dp(18), dp(30), dp(18), dp(30));
+                    history.addView(empty);
+                    return;
+                }
+                String ownHash = CryptoManager.deviceHash(this);
+                for(int i=0;i<arr.length();i++) {
+                    JSONObject m=arr.optJSONObject(i);
+                    if(m==null) continue;
+                    boolean mine=String.valueOf(m.optString("sender_id", "")).equals(currentUserId(data));
+                    String displayedBody;
+                    try {
+                        JSONObject envelope = new JSONObject(m.optString("body", ""));
+                        String[] pair = envelope.optString("key_id").split(":", -1);
+                        if (pair.length != 2) throw new IllegalArgumentException("Неверный идентификатор ключа");
+                        String peerShort = pair[0].equals(ownHash.substring(0, 32)) ? pair[1] : pair[0];
+                        JSONObject peerKey = findPeerKey(keys, peerShort);
+                        if (peerKey == null) throw new IllegalArgumentException("Ключ устройства собеседника не найден");
+                        if (!CryptoManager.verifyPeerKey(peerKey.optString("identity_public_key"), peerKey.optString("signed_prekey"), peerKey.optString("signed_prekey_signature"))) {
+                            throw new IllegalArgumentException("Подпись ключа собеседника недействительна");
+                        }
+                        displayedBody = CryptoManager.decrypt(this, currentChatId, envelope.toString(), peerKey.optString("key_id"), peerKey.optString("signed_prekey"));
+                    } catch (Exception cryptoError) {
+                        displayedBody = "🔒 Не удалось расшифровать это сообщение на этом устройстве.";
+                    }
+                    LinearLayout bubble=new LinearLayout(this);
+                    bubble.setOrientation(LinearLayout.VERTICAL);
+                    bubble.setPadding(dp(14), dp(10), dp(14), dp(10));
+                    bubble.setBackground(shape(mine ? 0xff5142a6 : 0xff171b24, 18));
+                    TextView sender=text(mine ? "Вы" : currentChatTitle,12,true,mine ? 0xffe5dcff : 0xffb9adff);
+                    TextView content=text(displayedBody,15,false,white);
+                    content.setMaxWidth((int)(getResources().getDisplayMetrics().widthPixels * 0.72f));
+                    bubble.addView(sender);
+                    bubble.addView(content);
+                    LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(-2,-2);
+                    params.setMargins(0,dp(4),0,dp(4));
+                    params.gravity=mine ? Gravity.RIGHT : Gravity.LEFT;
+                    history.addView(bubble,params);
+                }
+            });
         });
+    }
+
+    private String currentUserId(JSONObject ignored) {
+        // The server does not currently include the authenticated user's ID in history.
+        // The message is considered outgoing by its key-id ownership below when possible.
+        return "-1";
+    }
+
+    private interface PeerKeysCallback { void onResult(JSONArray keys, String error); }
+
+    private void fetchPeerKeys(String peerId, PeerKeysCallback callback) {
+        ApiClient.request("GET", "security/keys/" + android.net.Uri.encode(peerId), null, SessionStore.token(this),
+            (data, error) -> {
+                JSONArray keys = data.optJSONArray("keys");
+                if (error != null || keys == null || keys.length() == 0) {
+                    callback.onResult(keys, error != null ? error : "У собеседника ещё не зарегистрирован ключ шифрования.");
+                } else callback.onResult(keys, null);
+            });
+    }
+
+    private JSONObject findPeerKey(JSONArray keys, String shortId) {
+        for (int i = 0; i < keys.length(); i++) {
+            JSONObject key = keys.optJSONObject(i);
+            if (key != null && key.optString("key_id").startsWith(shortId)) return key;
+        }
+        return null;
+    }
+
+    private void registerCryptoKeys(Runnable onSuccess) {
+        try {
+            JSONObject payload = CryptoManager.ensureLocalKeys(this).toJson();
+            ApiClient.request("POST", "security/keys", payload, SessionStore.token(this), (data, error) -> {
+                if (error != null || !data.optBoolean("ok", false)) {
+                    message("Не удалось подключить ключи шифрования. " + (error == null ? data.optString("error", "") : error));
+                    if (onSuccess != null) onSuccess.run();
+                    return;
+                }
+                if (onSuccess != null) onSuccess.run();
+            });
+        } catch (Exception e) {
+            message("Не удалось создать ключи шифрования на устройстве.");
+            if (onSuccess != null) onSuccess.run();
+        }
+    }
+
+    private void sendEncryptedMessage(String plaintext, LinearLayout history) {
+        registerCryptoKeys(() -> fetchPeerKeys(currentPeerId, (keys, error) -> {
+            if (error != null) { message(error); return; }
+            try {
+                JSONObject peerKey = keys.optJSONObject(0);
+                if (peerKey == null || !CryptoManager.verifyPeerKey(peerKey.optString("identity_public_key"), peerKey.optString("signed_prekey"), peerKey.optString("signed_prekey_signature"))) {
+                    message("Подпись ключа собеседника не прошла проверку.");
+                    return;
+                }
+                JSONObject envelope = CryptoManager.encrypt(this, currentChatId, plaintext, peerKey.optString("key_id"), peerKey.optString("signed_prekey"));
+                String clientId = java.util.UUID.randomUUID().toString();
+                JSONObject payload = ApiClient.json("client_message_id", clientId, "type", "text", "body", envelope.toString());
+                ApiClient.request("POST", "conversations/" + currentChatId + "/messages", payload, SessionStore.token(this), (data, sendError) -> {
+                    if (sendError != null || !data.optBoolean("ok", false)) {
+                        message("Сообщение не отправлено: " + (sendError == null ? data.optString("error", "ошибка API") : sendError));
+                        return;
+                    }
+                    messageField.setText("");
+                    refreshChatHistory(history);
+                });
+            } catch (Exception cryptoError) {
+                message("Не удалось зашифровать сообщение. Обнови ключи и попробуй снова.");
+            }
+        }));
     }
     private void searchScreen() {
         title("Найти людей");subtitle("Ищи по username, имени или фамилии.");
@@ -681,7 +774,7 @@ public class MainActivity extends Activity {
                 if(arr==null||arr.length()==0){results.addView(text("Пользователи не найдены или API ещё не подключён.",14,false,muted));return;}
                 for(int i=0;i<arr.length();i++){JSONObject u=arr.optJSONObject(i);if(u==null)continue;
                     String uid=u.optString("id"), name=u.optString("first_name","")+" "+u.optString("last_name",""), uname=u.optString("username","");
-                    results.addView(button(name+"  @"+uname,()->request("POST","conversations",ApiClient.json("user_id",uid),true,(chatData,apiError)->{currentChatId=chatData.optString("conversation_id",chatData.optString("id",chatData.optString("chat_id","")));currentChatTitle=name;showPage("chat");})));
+                    results.addView(button(name+"  @"+uname,()->request("POST","conversations",ApiClient.json("user_id",uid),true,(chatData,apiError)->{currentChatId=chatData.optString("conversation_id",chatData.optString("id",chatData.optString("chat_id","")));currentChatTitle=name;currentPeerId=uid;showPage("chat");})));
                 }
             });
         }));
@@ -727,7 +820,7 @@ public class MainActivity extends Activity {
                 final String contactDisplayName = name;
                 final String contactConversationId = conversation.optString("id","");
                 String title=contactDisplayName+"  @"+peer.optString("username","");
-                results.addView(button(title,()->{currentChatId=contactConversationId;currentChatTitle=contactDisplayName;showPage("chat");}));
+                results.addView(button(title,()->{currentChatId=contactConversationId;currentChatTitle=contactDisplayName;currentPeerId=id;showPage("chat");}));
             }
         });
         body.addView(button("Найти пользователя",()->showPage("search")));
