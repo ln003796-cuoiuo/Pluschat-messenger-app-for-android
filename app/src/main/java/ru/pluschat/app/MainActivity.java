@@ -673,10 +673,14 @@ public class MainActivity extends Activity {
         request("GET","conversations",null,true,(data,error)->{
             JSONArray arr=data.optJSONArray("conversations");if(arr==null)arr=data.optJSONArray("data");
             if(arr==null||arr.length()==0){results.addView(text("Контактов пока нет. Найди пользователя по username.",14,false,muted));return;}
-            for(int i=0;i<arr.length();i++){JSONObject u=arr.optJSONObject(i);if(u==null)continue;
-                String id=u.optString("id",u.optString("user_id",""));
-                String name=u.optString("first_name","")+" "+u.optString("last_name","")+"  @"+u.optString("username","");
-                results.addView(button(name,()->request("POST","conversations",ApiClient.json("user_id",id),true,(chatData,apiError)->{currentChatId=chatData.optString("conversation_id",chatData.optString("id",chatData.optString("chat_id","")));currentChatTitle=name;showPage("chat");})));
+            for(int i=0;i<arr.length();i++){JSONObject conversation=arr.optJSONObject(i);if(conversation==null)continue;
+                JSONObject peer=conversation.optJSONObject("other_user");
+                if(peer==null)continue;
+                String id=peer.optString("id","");
+                String name=(peer.optString("first_name","")+" "+peer.optString("last_name","")).trim();
+                if(name.isEmpty())name="@"+peer.optString("username","user");
+                String title=name+"  @"+peer.optString("username","");
+                results.addView(button(title,()->{currentChatId=conversation.optString("id","");currentChatTitle=name;showPage("chat");}));
             }
         });
         body.addView(button("Найти пользователя",()->showPage("search")));
