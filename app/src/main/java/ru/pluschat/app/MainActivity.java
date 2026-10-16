@@ -99,7 +99,7 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(lightMode ? Color.WHITE : 0xff0b0d12);
         getWindow().setNavigationBarColor(lightMode ? Color.WHITE : 0xff0b0d12);
         if (android.os.Build.VERSION.SDK_INT >= 23) getWindow().getDecorView().setSystemUiVisibility(lightMode ? View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR : 0);
-        boolean authFlow = target.equals("welcome") || target.equals("auth") || target.equals("register") || target.equals("verify_email") || target.equals("twofa");
+        boolean authFlow = target.equals("welcome") || target.equals("auth") || target.equals("register") || target.equals("verify_email") || target.equals("twofa") || target.equals("twofa_setup");
         boolean conversation = target.equals("chat");
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
@@ -130,7 +130,7 @@ public class MainActivity extends Activity {
 
         boolean signedIn = !SessionStore.token(this).isEmpty()
                 && !target.equals("auth") && !target.equals("register") && !target.equals("verify_email")
-                && !target.equals("twofa");
+                && !target.equals("twofa") && !target.equals("twofa_setup");
         if (signedIn && !conversation) {
             LinearLayout nav = new LinearLayout(this);
             nav.setOrientation(LinearLayout.HORIZONTAL);
@@ -333,6 +333,10 @@ public class MainActivity extends Activity {
         if(id.isEmpty()||pw.isEmpty()){message("Введи телефон/email и пароль.");return;}
         request("POST","auth/login",ApiClient.json("login",id,"password",pw,"device_key",SessionStore.deviceKey(this),"device_name",android.os.Build.MANUFACTURER+" "+android.os.Build.MODEL,"platform","android"),false,(data,error)->{
             if(data.optBoolean("requires_2fa",false)){ pending2fa=data.optString("challenge_id",""); showPage("twofa"); return; }
+            if(data.optBoolean("requires_2fa_setup",false)) {
+                if(saveSession(data)) showPage("twofa_setup");
+                return;
+            }
             if(saveSession(data)) registerCryptoKeys(() -> showPage("home"));
         });
     }
@@ -365,10 +369,12 @@ public class MainActivity extends Activity {
         body.addView(button("Подтвердить и включить",()->{
             if(setupId[0].isEmpty()){message("Сначала нажми «Настроить 2FA».");return;}
             request("POST","auth/2fa/confirm",ApiClient.json("setup_id",setupId[0],"code",value(code)),true,(data,error)->{
-                message("Двухэтапная аутентификация включена.");showPage("settings");
+                if (!data.optBoolean("ok", false)) { message("Не удалось включить 2FA. Проверь код и повтори."); return; }
+                message("Двухэтапная аутентификация включена.");
+                registerCryptoKeys(() -> showPage("home"));
             });
         }));
-        body.addView(button("Отключить 2FA",()->request("POST","auth/2fa/disable",new JSONObject(),true,(data,error)->{message("2FA отключена.");showPage("settings");})));
+        body.addView(text("Двухэтапная аутентификация обязательна и не может быть отключена.", 12, false, muted));
         body.addView(button("Назад",()->showPage("settings")));
     }
 
