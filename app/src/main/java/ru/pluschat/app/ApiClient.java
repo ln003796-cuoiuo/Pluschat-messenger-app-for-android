@@ -178,7 +178,7 @@ public final class ApiClient {
                         byte[] buffer = new byte[8192]; int n; int total = 0;
                         while ((n = in.read(buffer)) != -1) {
                             total += n;
-                            if (total > 25 * 1024 * 1024 + 28) throw new java.io.IOException("Attachment exceeds 25 MB");
+                            if (total > 25 * 1024 * 1024 + 32) throw new java.io.IOException("Attachment exceeds 25 MB");
                             out.write(buffer, 0, n);
                         }
                         result = out.toByteArray();
