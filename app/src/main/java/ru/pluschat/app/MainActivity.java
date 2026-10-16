@@ -24,6 +24,9 @@ public class MainActivity extends Activity {
     private ArrayList<JSONObject> chats = new ArrayList<>();
     private boolean lightMode = false;
     private android.net.Uri selectedAvatar;
+    private byte[] pendingDecryptedFile;
+    private String pendingDecryptedName = "download.bin";
+    private String pendingDecryptedMime = "application/octet-stream";
     private final Handler chatHandler = new Handler(Looper.getMainLooper());
     private Runnable chatPoll;
 
@@ -605,7 +608,7 @@ public class MainActivity extends Activity {
         TextView attach = text("+", 26, false, 0xffb9adff);
         attach.setGravity(Gravity.CENTER);
         composer.addView(attach, new LinearLayout.LayoutParams(dp(42), dp(48)));
-        attach.setOnClickListener(v -> message("Прикрепление файлов будет доступно после подключения загрузки вложений."));
+        attach.setOnClickListener(v -> pickAttachment());
         messageField = input("Сообщение…", false);
         messageField.setSingleLine(true);
         messageField.setBackground(shape(0xff171b24, 22));
@@ -1005,7 +1008,17 @@ public class MainActivity extends Activity {
         if (requestCode == 7101 && resultCode == RESULT_OK && data != null) {
             selectedAvatar = data.getData();
             message("Изображение выбрано.");
-
+        } else if (requestCode == 7102 && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            sendEncryptedAttachment(data.getData());
+        } else if (requestCode == 7103 && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            try (java.io.OutputStream out = getContentResolver().openOutputStream(data.getData())) {
+                if (out == null || pendingDecryptedFile == null) throw new java.io.IOException("Cannot write destination");
+                out.write(pendingDecryptedFile);
+                pendingDecryptedFile = null;
+                message("Файл расшифрован и сохранён.");
+            } catch (Exception e) {
+                message("Не удалось сохранить расшифрованный файл.");
+            }
         }
     }
 
