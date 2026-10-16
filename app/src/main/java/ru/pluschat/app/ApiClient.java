@@ -55,7 +55,7 @@ public final class ApiClient {
                     error = e != null ? e.optString("message", "Request failed (" + code + ")") : response.optString("message", "Request failed (" + code + ")");
                 }
             } catch (Exception ex) {
-                error = "Не удалось подключиться к серверу. Проверь интернет и доступность шлюза.";
+                error = "Не удалось подключиться к серверу. Проверь интернет и доступность основного хоста.";
             } finally {
                 if (connection != null) connection.disconnect();
             }
