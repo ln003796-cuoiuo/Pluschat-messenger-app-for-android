@@ -298,7 +298,7 @@ public class MainActivity extends Activity {
                 String name = device.optString("device_name", "Устройство");
                 String platform = device.optString("platform", "unknown");
                 String lastSeen = device.optString("last_seen_at", "");
-                list.addView(text(name + " · " + platform + "\\nПоследняя активность: " + lastSeen, 13, false, white));
+                list.addView(text(name + " · " + platform + "\nПоследняя активность: " + lastSeen, 13, false, white));
                 list.addView(button("Отозвать это устройство", () -> request("POST", "devices/" + id + "/revoke",
                         new JSONObject(), true, (result, revokeError) -> {
                     if (result.optBoolean("ok", false)) {
