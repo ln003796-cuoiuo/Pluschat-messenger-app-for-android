@@ -1,5 +1,7 @@
 name: Android build
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 concurrency:
   group: android-build-${{ github.ref }}
