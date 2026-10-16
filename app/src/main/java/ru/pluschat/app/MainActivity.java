@@ -119,7 +119,7 @@ public class MainActivity extends Activity {
         scroll.setFillViewport(true);
         body = column();
         body.setPadding(dp(20), dp(16), dp(20), dp(24));
-        scroll.addView(body);
+        if (!conversation) scroll.addView(body);
         if (conversation) root.addView(body, new LinearLayout.LayoutParams(-1, 0, 1));
         else root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
 
