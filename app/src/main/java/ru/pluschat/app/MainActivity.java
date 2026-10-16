@@ -496,11 +496,12 @@ public class MainActivity extends Activity {
                     previewText.setEllipsize(android.text.TextUtils.TruncateAt.END);
                     details.addView(previewText);
                     item.addView(details, new LinearLayout.LayoutParams(0, -2, 1));
+                    final String chatDisplayName = name;
                     TextView arrow = text("›", 26, false, 0xff7d8799);
                     item.addView(arrow);
                     item.setOnClickListener(v -> {
                         currentChatId = id;
-                        currentChatTitle = name;
+                        currentChatTitle = chatDisplayName;
                         showPage("chat");
                     });
                     chatList.addView(item, itemParams);
@@ -682,8 +683,10 @@ public class MainActivity extends Activity {
                 String id=peer.optString("id","");
                 String name=(peer.optString("first_name","")+" "+peer.optString("last_name","")).trim();
                 if(name.isEmpty())name="@"+peer.optString("username","user");
-                String title=name+"  @"+peer.optString("username","");
-                results.addView(button(title,()->{currentChatId=conversation.optString("id","");currentChatTitle=name;showPage("chat");}));
+                final String contactDisplayName = name;
+                final String contactConversationId = conversation.optString("id","");
+                String title=contactDisplayName+"  @"+peer.optString("username","");
+                results.addView(button(title,()->{currentChatId=contactConversationId;currentChatTitle=contactDisplayName;showPage("chat");}));
             }
         });
         body.addView(button("Найти пользователя",()->showPage("search")));
