@@ -142,6 +142,7 @@ public class MainActivity extends Activity {
         if (target.equals("welcome")) welcomeScreen();
         else if (target.equals("auth")) authScreen();
         else if (target.equals("register")) registerScreen();
+        else if (target.equals("verify_email")) verifyEmailScreen();
         else if (target.equals("home")) homeScreen();
         else if (target.equals("chat")) chatScreen();
         else if (target.equals("search")) searchScreen();
@@ -250,11 +251,11 @@ public class MainActivity extends Activity {
     }
     private void registerScreen() {
         title("Создать аккаунт");
-        subtitle("Заполни данные. Для входа потребуется подтвердить email по ссылке из письма.");
+        subtitle("Создай аккаунт Pluschat. Мы отправим код подтверждения на твою почту.");
         emailField = input("Электронная почта", false); body.addView(emailField);
         passwordField = input("Пароль (минимум 10 символов)", true); body.addView(passwordField);
         confirmPasswordField = input("Повторите пароль", true); body.addView(confirmPasswordField);
-        firstNameField = input("Имя (необязательно)", false); body.addView(firstNameField);
+        firstNameField = input("Имя *", false); body.addView(firstNameField);
         lastNameField = input("Фамилия (необязательно)", false); body.addView(lastNameField);
         usernameField = input("Username: латиница, цифры, _", false); body.addView(usernameField);
         birthField = input("Дата рождения YYYY-MM-DD (необязательно)", false); body.addView(birthField);
@@ -273,6 +274,7 @@ public class MainActivity extends Activity {
             String lastName = value(lastNameField);
             String birthDate = value(birthField);
             if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) { message("Введи корректный email."); return; }
+            if (firstName.trim().isEmpty()) { message("Имя обязательно для регистрации."); firstNameField.requestFocus(); return; }
             if (password.length() < 10 || password.length() > 200) { message("Пароль должен содержать от 10 до 200 символов."); return; }
             if (!password.equals(confirm)) { message("Пароли не совпадают."); return; }
             if (!username.matches("[A-Za-z0-9_]{3,32}")) { message("Username: 3–32 символа, латинские буквы, цифры и _."); return; }
@@ -281,14 +283,44 @@ public class MainActivity extends Activity {
             JSONObject payload = ApiClient.json("email", email, "password", password, "username", username,
                 "first_name", firstName, "last_name", lastName, "birth_date", birthDate);
             request("POST", "auth/register", payload, false, (data, error) -> {
+                if (error != null || !data.optBoolean("ok", false)) return;
                 registrationEmail = email;
-                message(data.optString("message", "Регистрация создана. Проверь почту и подтверди адрес."));
-                showPage("auth");
-                if (identifierField != null) identifierField.setText(email);
+                message(data.optString("message", "Код подтверждения отправлен на почту."));
+                showPage("verify_email");
             });
         }));
         body.addView(button("Уже есть аккаунт — войти", () -> showPage("auth")));
     }
+    private void verifyEmailScreen() {
+        title("Подтверди почту");
+        subtitle("Мы отправили шестизначный код на " + registrationEmail + ". Проверь входящие и папку «Спам».");
+        TextView emailLabel = text(registrationEmail, 15, true, lightMode ? 0xff51458b : 0xffc7beff);
+        emailLabel.setPadding(0, dp(6), 0, dp(12));
+        body.addView(emailLabel);
+        emailCodeField = input("Код из письма · 6 цифр", false);
+        emailCodeField.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        emailCodeField.setLetterSpacing(0.25f);
+        emailCodeField.setTextSize(22);
+        emailCodeField.setGravity(Gravity.CENTER);
+        body.addView(emailCodeField);
+        body.addView(button("Подтвердить email", () -> {
+            String code = value(emailCodeField).trim();
+            if (!code.matches("[0-9]{6}")) { message("Введи шестизначный код из письма."); return; }
+            request("POST", "auth/verify", ApiClient.json("email", registrationEmail, "code", code), false, (data, error) -> {
+                if (error != null || !data.optBoolean("verified", false)) return;
+                message("Почта подтверждена. Теперь войди в аккаунт.");
+                showPage("auth");
+                if (identifierField != null) identifierField.setText(registrationEmail);
+            });
+        }));
+        body.addView(button("Отправить код повторно", () -> {
+            request("POST", "auth/resend-verification", ApiClient.json("email", registrationEmail), false, (data, error) -> {
+                if (error == null) message(data.optString("message", "Если аккаунт ожидает подтверждения, письмо отправлено."));
+            });
+        }));
+        body.addView(button("Вернуться к регистрации", () -> showPage("register")));
+    }
+
     private void login() {
         String id=value(identifierField), pw=value(loginPasswordField);
         if(id.isEmpty()||pw.isEmpty()){message("Введи телефон/email и пароль.");return;}
