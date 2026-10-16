@@ -268,12 +268,41 @@ public class MainActivity extends Activity {
                 });
             }));
         } else if (registrationStage.equals("email_code")) {
-            subtitle("Шаг 2 из 3 · Введи код из письма");
-            emailCodeField = input("Код подтверждения", false); body.addView(emailCodeField);
-            body.addView(button("Подтвердить почту", () -> request("POST", "auth/registration/email/verify",
-                ApiClient.json("challenge_id", emailChallenge, "code", value(emailCodeField)), false, (data,error)-> {
-                    registrationStage = "profile"; showPage("register");
-                })));
+            subtitle("Введите 6 цифр из письма");
+            LinearLayout codeRow = row();
+            codeRow.setGravity(Gravity.CENTER);
+            final EditText[] codeBoxes = new EditText[6];
+            for (int i = 0; i < codeBoxes.length; i++) {
+                EditText box = input("", false);
+                box.setSingleLine(true);
+                box.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+                box.setGravity(Gravity.CENTER);
+                box.setTextSize(22);
+                box.setPadding(0, 0, 0, 0);
+                LinearLayout.LayoutParams boxParams = new LinearLayout.LayoutParams(0, dp(58), 1);
+                boxParams.setMargins(dp(3), dp(14), dp(3), dp(18));
+                codeRow.addView(box, boxParams);
+                codeBoxes[i] = box;
+                final int index = i;
+                box.addTextChangedListener(new android.text.TextWatcher() {
+                    @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                    @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                        if (s.length() > 1) box.setText(s.subSequence(s.length() - 1, s.length()));
+                        if (s.length() == 1 && index < codeBoxes.length - 1) codeBoxes[index + 1].requestFocus();
+                    }
+                    @Override public void afterTextChanged(android.text.Editable e) {}
+                });
+            }
+            body.addView(codeRow);
+            body.addView(button("Подтвердить", () -> {
+                StringBuilder code = new StringBuilder();
+                for (EditText box : codeBoxes) code.append(value(box));
+                if (code.length() != 6) { message("Введите все 6 цифр из письма."); return; }
+                request("POST", "auth/registration/email/verify",
+                    ApiClient.json("challenge_id", emailChallenge, "code", code.toString()), false, (data,error)-> {
+                        registrationStage = "profile"; showPage("register");
+                    });
+            }));
             body.addView(button("Изменить email", () -> { registrationStage = "email"; showPage("register"); }));
         } else {
             subtitle("Шаг 3 из 3 · Данные профиля. Email уже подтверждён.");
