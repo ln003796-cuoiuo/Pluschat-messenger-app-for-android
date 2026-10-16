@@ -136,6 +136,23 @@ public final class CryptoManager {
         return new String(plaintext, StandardCharsets.UTF_8);
     }
 
+    public static boolean verifyPeerKey(String identityPublicKey, String signedPrekey, String signature) {
+        try {
+            byte[] identityRaw = unb64(identityPublicKey);
+            byte[] prekeyRaw = unb64(signedPrekey);
+            byte[] signatureRaw = unb64(signature);
+            if (identityRaw.length != 32 || prekeyRaw.length != 32 || signatureRaw.length != 64) return false;
+            PublicKey identity = KeyFactory.getInstance("Ed25519").generatePublic(
+                    new X509EncodedKeySpec(concat(ED25519_X509_PREFIX, identityRaw)));
+            Signature verifier = Signature.getInstance("Ed25519");
+            verifier.initVerify(identity);
+            verifier.update(prekeyRaw);
+            return verifier.verify(signatureRaw);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public static String deviceHash(Context context) {
         return deviceHash(SessionStore.deviceKey(context));
     }
@@ -162,7 +179,8 @@ public final class CryptoManager {
         String second = a.compareTo(b) <= 0 ? b : a;
         byte[] salt = MessageDigest.getInstance("SHA-256").digest(("Pluschat salt|" + conversationId).getBytes(StandardCharsets.UTF_8));
         byte[] prk = hmac(salt, shared);
-        return hmac(prk, ("Pluschat " + VERSION + "|" + conversationId + "|" + first + "|" + second + "\u0001").getBytes(StandardCharsets.UTF_8));
+        byte[] info = ("Pluschat " + VERSION + "|" + conversationId + "|" + first + "|" + second).getBytes(StandardCharsets.UTF_8);
+        return hmac(prk, concat(info, new byte[] { 1 }));
     }
 
     private static byte[] aad(String conversationId, String a, String b) {
