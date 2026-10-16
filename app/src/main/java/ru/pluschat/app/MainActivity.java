@@ -249,103 +249,50 @@ public class MainActivity extends Activity {
         TextView signup = text("Нет аккаунта?  Создать", 13, true, 0xffb7adff); signup.setGravity(Gravity.CENTER); signup.setPadding(0, dp(22), 0, dp(12)); signup.setOnClickListener(v -> { registrationStage = "email"; showPage("register"); }); body.addView(signup);
     }
     private void registerScreen() {
-        title("Регистрация");
-        if (registrationStage.equals("email")) {
-            subtitle("Это займёт всего пару минут");
-            emailField = input("Электронная почта", false); body.addView(emailField);
-            passwordField = input("Пароль (минимум 10 символов)", true); body.addView(passwordField);
-            confirmPasswordField = input("Повторите пароль", true); body.addView(confirmPasswordField);
-            CheckBox terms = new CheckBox(this);
-            terms.setText("Я согласен(на) с условиями сервиса");
-            terms.setTextColor(white);
-            terms.setTextSize(12);
-            if (android.os.Build.VERSION.SDK_INT >= 21) terms.setButtonTintList(android.content.res.ColorStateList.valueOf(0xff8875ff));
-            body.addView(terms);
-            body.addView(button("Продолжить", () -> {
-                String email = value(emailField), password = value(passwordField), confirm = value(confirmPasswordField);
-                if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) { message("Введи корректный email."); return; }
-                if (password.length() < 10) { message("Пароль должен содержать не менее 10 символов."); return; }
-                if (!password.equals(confirm)) { message("Пароли не совпадают."); return; }
-                if (!terms.isChecked()) { message("Подтвердите согласие с условиями сервиса."); return; }
-                registrationEmail = email; registrationPassword = password;
-                request("POST", "auth/registration/email/start", ApiClient.json("email", email), false, (data,error)-> {
-                    emailChallenge = data.optString("challenge_id", "");
-                    if (emailChallenge.isEmpty()) { message("Сервер не вернул challenge_id."); return; }
-                    registrationStage = "email_code"; showPage("register");
-                });
-            }));
-        } else if (registrationStage.equals("email_code")) {
-            subtitle("Введите 6 цифр из письма");
-            LinearLayout codeRow = row();
-            codeRow.setGravity(Gravity.CENTER);
-            final EditText[] codeBoxes = new EditText[6];
-            for (int i = 0; i < codeBoxes.length; i++) {
-                EditText box = input("", false);
-                box.setSingleLine(true);
-                box.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
-                box.setGravity(Gravity.CENTER);
-                box.setTextSize(22);
-                box.setPadding(0, 0, 0, 0);
-                LinearLayout.LayoutParams boxParams = new LinearLayout.LayoutParams(0, dp(58), 1);
-                boxParams.setMargins(dp(3), dp(14), dp(3), dp(18));
-                codeRow.addView(box, boxParams);
-                codeBoxes[i] = box;
-                final int index = i;
-                box.addTextChangedListener(new android.text.TextWatcher() {
-                    @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-                    @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
-                        if (s.length() > 1) box.setText(s.subSequence(s.length() - 1, s.length()));
-                        if (s.length() == 1 && index < codeBoxes.length - 1) codeBoxes[index + 1].requestFocus();
-                    }
-                    @Override public void afterTextChanged(android.text.Editable e) {}
-                });
-            }
-            body.addView(codeRow);
-            body.addView(button("Подтвердить", () -> {
-                StringBuilder code = new StringBuilder();
-                for (EditText box : codeBoxes) code.append(value(box));
-                if (code.length() != 6) { message("Введите все 6 цифр из письма."); return; }
-                request("POST", "auth/registration/email/verify",
-                    ApiClient.json("challenge_id", emailChallenge, "code", code.toString()), false, (data,error)-> {
-                        registrationStage = "profile"; showPage("register");
-                    });
-            }));
-            body.addView(button("Изменить email", () -> { registrationStage = "email"; showPage("register"); }));
-        } else {
-            subtitle("Шаг 3 из 3 · Данные профиля. Email уже подтверждён.");
-            body.addView(button("Выбрать аватарку", this::pickAvatar));
-            if (selectedAvatar != null) subtitle("Аватар выбран. Он загрузится после создания аккаунта.");
-            firstNameField = input("Имя", false); body.addView(firstNameField);
-            lastNameField = input("Фамилия", false); body.addView(lastNameField);
-            usernameField = input("@username", false); body.addView(usernameField);
-            bioField = input("Описание профиля (необязательно)", false); body.addView(bioField);
-            birthField = input("Дата рождения YYYY-MM-DD (необязательно)", false); body.addView(birthField);
-            educationField = input("Учёба / работа (необязательно)", false); body.addView(educationField);
-            body.addView(button("Создать аккаунт и войти", this::completeRegistration));
-            body.addView(button("Назад", () -> { registrationStage = "email_code"; showPage("register"); }));
-        }
-        body.addView(button("Отмена", () -> showPage("auth")));
-    }
-    private void completeRegistration() {
-        String fn=value(firstNameField), ln=value(lastNameField), un=value(usernameField), pw=registrationPassword;
-        if (fn.isEmpty() || ln.isEmpty() || un.isEmpty() || pw.length()<10) { message("Заполни имя, фамилию, username и пароль от 10 символов."); return; }
-        JSONObject payload=ApiClient.json("challenge_id", phoneChallenge, "email_challenge_id", emailChallenge,
-            "email", registrationEmail, "password", pw, "first_name", fn, "last_name", ln,
-            "username", un.replaceFirst("^@", ""), "bio", value(bioField), "birth_date", value(birthField), "education", value(educationField));
-        request("POST", "auth/registration/complete", payload, false, (data,error)-> {
-            if (!saveSession(data)) return;
-            if (selectedAvatar != null) {
-                ApiClient.uploadFile(this, selectedAvatar, "me/avatar", SessionStore.token(this), (upload, uploadError) -> {
-                    if (uploadError != null) message("Аккаунт создан, но аватар не загрузился: " + uploadError);
-                    showPage("home");
-                });
-            } else showPage("home");
-        });
+        title("Создать аккаунт");
+        subtitle("Заполни данные. Для входа потребуется подтвердить email по ссылке из письма.");
+        emailField = input("Электронная почта", false); body.addView(emailField);
+        passwordField = input("Пароль (минимум 10 символов)", true); body.addView(passwordField);
+        confirmPasswordField = input("Повторите пароль", true); body.addView(confirmPasswordField);
+        firstNameField = input("Имя (необязательно)", false); body.addView(firstNameField);
+        lastNameField = input("Фамилия (необязательно)", false); body.addView(lastNameField);
+        usernameField = input("Username: латиница, цифры, _", false); body.addView(usernameField);
+        birthField = input("Дата рождения YYYY-MM-DD (необязательно)", false); body.addView(birthField);
+        CheckBox terms = new CheckBox(this);
+        terms.setText("Я согласен(на) с условиями сервиса");
+        terms.setTextColor(lightMode ? 0xff282438 : white);
+        terms.setTextSize(12);
+        if (android.os.Build.VERSION.SDK_INT >= 21) terms.setButtonTintList(android.content.res.ColorStateList.valueOf(0xff8875ff));
+        body.addView(terms);
+        body.addView(button("Создать аккаунт", () -> {
+            String email = value(emailField).toLowerCase(java.util.Locale.ROOT);
+            String password = value(passwordField);
+            String confirm = value(confirmPasswordField);
+            String username = value(usernameField).replaceFirst("^@", "");
+            String firstName = value(firstNameField);
+            String lastName = value(lastNameField);
+            String birthDate = value(birthField);
+            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) { message("Введи корректный email."); return; }
+            if (password.length() < 10 || password.length() > 200) { message("Пароль должен содержать от 10 до 200 символов."); return; }
+            if (!password.equals(confirm)) { message("Пароли не совпадают."); return; }
+            if (!username.matches("[A-Za-z0-9_]{3,32}")) { message("Username: 3–32 символа, латинские буквы, цифры и _."); return; }
+            if (!birthDate.isEmpty() && !birthDate.matches("\\d{4}-\\d{2}-\\d{2}")) { message("Дата должна быть в формате YYYY-MM-DD."); return; }
+            if (!terms.isChecked()) { message("Подтверди согласие с условиями сервиса."); return; }
+            JSONObject payload = ApiClient.json("email", email, "password", password, "username", username,
+                "first_name", firstName, "last_name", lastName, "birth_date", birthDate);
+            request("POST", "auth/register", payload, false, (data, error) -> {
+                registrationEmail = email;
+                message(data.optString("message", "Регистрация создана. Проверь почту и подтверди адрес."));
+                showPage("auth");
+                if (identifierField != null) identifierField.setText(email);
+            });
+        }));
+        body.addView(button("Уже есть аккаунт — войти", () -> showPage("auth")));
     }
     private void login() {
         String id=value(identifierField), pw=value(loginPasswordField);
         if(id.isEmpty()||pw.isEmpty()){message("Введи телефон/email и пароль.");return;}
-        request("POST","auth/login",ApiClient.json("identifier",id,"password",pw),false,(data,error)->{
+        request("POST","auth/login",ApiClient.json("login",id,"password",pw,"device_key",SessionStore.deviceKey(this),"device_name",android.os.Build.MANUFACTURER+" "+android.os.Build.MODEL,"platform","android"),false,(data,error)->{
             if(data.optBoolean("requires_2fa",false)){ pending2fa=data.optString("challenge_id",""); showPage("twofa"); return; }
             if(saveSession(data)) showPage("home");
         });
@@ -357,7 +304,7 @@ public class MainActivity extends Activity {
         body.addView(button("Подтвердить и войти",()->request("POST","auth/2fa/verify",ApiClient.json("challenge_id",pending2fa,"code",value(code)),false,(data,error)->{if(saveSession(data))showPage("home");})));
     }
     private boolean saveSession(JSONObject data) {
-        String access=data.optString("access_token",""), refresh=data.optString("refresh_token","");
+        String access=data.optString("access_token", data.optString("token","")), refresh=data.optString("refresh_token","");
         if(access.isEmpty()){message("Сервер не вернул токен сессии. Проверь контракт API.");return false;}
         try { SessionStore.save(this,access,refresh); return true; }
         catch(Exception e){message("Не удалось безопасно сохранить сессию.");return false;}
@@ -496,10 +443,10 @@ public class MainActivity extends Activity {
         TextView loading = text("Загружаем переписки…", 14, false, 0xff89839a);
         loading.setPadding(dp(4), dp(18), dp(4), dp(18));
         chatList.addView(loading);
-        request("GET", "chats", null, true, (data, error) -> {
+        request("GET", "conversations", null, true, (data, error) -> {
             if (!"home".equals(page) || chatList == null) return;
             chats.clear();
-            JSONArray arr = data.optJSONArray("chats");
+            JSONArray arr = data.optJSONArray("conversations");
             if (arr == null) arr = data.optJSONArray("data");
             if (arr != null) for (int i = 0; i < arr.length(); i++) {
                 JSONObject chat = arr.optJSONObject(i);
@@ -527,7 +474,7 @@ public class MainActivity extends Activity {
             } else {
                 for (JSONObject chat : chats) {
                     String id = chat.optString("id", chat.optString("chat_id", ""));
-                    String name = chat.optString("title", chat.optString("name", "Чат"));
+                    JSONObject peer = chat.optJSONObject("other_user");\n                    String name = chat.optString("title", chat.optString("name", peer == null ? "Чат" : (peer.optString("first_name","")+" "+peer.optString("last_name","")).trim()));\n                    if (name.isEmpty() || name.equals("Чат")) name = peer == null ? "Чат" : "@"+peer.optString("username","user");
                     String preview = chat.optString("last_message", "Открыть переписку");
                     LinearLayout item = row();
                     item.setPadding(dp(12), dp(13), dp(12), dp(13));
@@ -624,7 +571,7 @@ public class MainActivity extends Activity {
             String msg = value(messageField);
             if (msg.isEmpty()) return;
             String clientId = java.util.UUID.randomUUID().toString();
-            request("POST", "chats/" + currentChatId + "/messages",
+            request("POST", "conversations/" + currentChatId + "/messages",
                 ApiClient.json("client_message_id", clientId, "type", "text", "body", msg), true,
                 (data, error) -> { messageField.setText(""); refreshChatHistory(history); });
         });
@@ -646,7 +593,7 @@ public class MainActivity extends Activity {
             history.addView(text("Открой чат из списка.", 14, false, muted));
             return;
         }
-        request("GET","chats/"+currentChatId+"/messages?limit=50",null,true,(data,error)->{
+        request("GET","conversations/"+currentChatId+"/messages?limit=50",null,true,(data,error)->{
             if (!"chat".equals(page)) return;
             JSONArray arr=data.optJSONArray("messages");
             if(arr==null)arr=data.optJSONArray("data");
@@ -684,12 +631,12 @@ public class MainActivity extends Activity {
         LinearLayout results=new LinearLayout(this);results.setOrientation(LinearLayout.VERTICAL);body.addView(results);
         body.addView(button("Поиск",()->{
             results.removeAllViews();String query=value(q);
-            request("GET","users/search?q="+android.net.Uri.encode(query),null,true,(data,error)->{
+            request("GET","search?q="+android.net.Uri.encode(query),null,true,(data,error)->{
                 JSONArray arr=data.optJSONArray("users");if(arr==null)arr=data.optJSONArray("data");
                 if(arr==null||arr.length()==0){results.addView(text("Пользователи не найдены или API ещё не подключён.",14,false,muted));return;}
                 for(int i=0;i<arr.length();i++){JSONObject u=arr.optJSONObject(i);if(u==null)continue;
                     String uid=u.optString("id"), name=u.optString("first_name","")+" "+u.optString("last_name",""), uname=u.optString("username","");
-                    results.addView(button(name+"  @"+uname,()->request("POST","chats",ApiClient.json("type","direct","user_id",uid),true,(chatData,apiError)->{currentChatId=chatData.optString("id",chatData.optString("chat_id",""));currentChatTitle=name;showPage("chat");})));
+                    results.addView(button(name+"  @"+uname,()->request("POST","conversations",ApiClient.json("user_id",uid),true,(chatData,apiError)->{currentChatId=chatData.optString("conversation_id",chatData.optString("id",chatData.optString("chat_id","")));currentChatTitle=name;showPage("chat");})));
                 }
             });
         }));
@@ -729,7 +676,7 @@ public class MainActivity extends Activity {
             for(int i=0;i<arr.length();i++){JSONObject u=arr.optJSONObject(i);if(u==null)continue;
                 String id=u.optString("id",u.optString("user_id",""));
                 String name=u.optString("first_name","")+" "+u.optString("last_name","")+"  @"+u.optString("username","");
-                results.addView(button(name,()->request("POST","chats",ApiClient.json("type","direct","user_id",id),true,(chatData,apiError)->{currentChatId=chatData.optString("id",chatData.optString("chat_id",""));currentChatTitle=name;showPage("chat");})));
+                results.addView(button(name,()->request("POST","conversations",ApiClient.json("user_id",id),true,(chatData,apiError)->{currentChatId=chatData.optString("id",chatData.optString("chat_id",""));currentChatTitle=name;showPage("chat");})));
             }
         });
         body.addView(button("Найти пользователя",()->showPage("search")));
@@ -751,14 +698,14 @@ public class MainActivity extends Activity {
     }
 
     private void profileScreen() {
-        title("Мой профиль");subtitle("Редактирование профиля будет работать через GET/PATCH me.");
+        title("Мой профиль");subtitle("Обнови данные профиля. Изменения сохраняются на сервере.");
         EditText name=input("Имя",false), surname=input("Фамилия",false), username=input("@username",false), bio=input("Описание",false), birth=input("Дата рождения YYYY-MM-DD",false), edu=input("Учёба / работа",false);
         body.addView(button("Выбрать аватарку", this::pickAvatar));
         if (selectedAvatar != null) subtitle("Выбран файл аватарки.");
         body.addView(button("Загрузить выбранную аватарку", () -> { if (selectedAvatar == null) { message("Сначала выбери изображение."); return; } ApiClient.uploadFile(this, selectedAvatar, "me/avatar", SessionStore.token(this), (data,error) -> { if(error!=null)message(error);else message("Аватар обновлён."); }); }));
         body.addView(name);body.addView(surname);body.addView(username);body.addView(bio);body.addView(birth);body.addView(edu);
-        request("GET","me",null,true,(data,error)->{JSONObject u=data.optJSONObject("user");if(u==null)u=data;name.setText(u.optString("first_name",""));surname.setText(u.optString("last_name",""));username.setText(u.optString("username",""));bio.setText(u.optString("bio",""));birth.setText(u.optString("birth_date",""));edu.setText(u.optString("education",""));});
-        body.addView(button("Сохранить профиль",()->request("PATCH","me",ApiClient.json("first_name",value(name),"last_name",value(surname),"username",value(username).replaceFirst("^@",""),"bio",value(bio),"birth_date",value(birth),"education",value(edu)),true,(data,error)->message("Профиль сохранён."))));
+        request("GET","auth/me",null,true,(data,error)->{JSONObject u=data.optJSONObject("user");if(u==null)u=data;name.setText(u.optString("first_name",""));surname.setText(u.optString("last_name",""));username.setText(u.optString("username",""));bio.setText(u.optString("bio",""));birth.setText(u.optString("birth_date",""));edu.setText(u.optString("education",""));});
+        body.addView(button("Сохранить профиль",()->request("POST","auth/profile",ApiClient.json("first_name",value(name),"last_name",value(surname),"username",value(username).replaceFirst("^@",""),"bio",value(bio),"birth_date",value(birth),"education",value(edu)),true,(data,error)->message("Профиль сохранён."))));
         body.addView(button("Назад",()->showPage("home")));
     }
     private void settingsScreen() {
