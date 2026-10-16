@@ -1,15 +1,23 @@
-# Pluschat for Android
+# Pluschat для Android
 
-Native Android messenger client. The app communicates only with the Pluschat gateway:
+Нативный Android-клиент Pluschat на Java. Интерфейс приводится к макету Figma:
 
-`https://xn--n1aabel.xn--80avljg2a1c.xn--p1ai/api/v1/`
+https://www.figma.com/design/K1DkOFipvcBO19qrmWnZGG
 
-The gateway API is versioned and documented in `docs/API_CONTRACT.md`. The app does not connect directly to the main host. Server-side endpoints must be implemented before real registration, OTP delivery, login, or messaging can work.
+Приложение использует HTTPS API основного хоста:
 
-## Build
+`https://xn--80avljg2a1c.xn--p1ai/api/v1/`
 
-GitHub Actions builds a debug APK on pushes and pull requests. Download it from the workflow run's **Artifacts** section.
+## Сборка APK
 
-## Security
+Открой проект в Android Studio, дождись синхронизации Gradle и выбери **Build → Build APK(s)**. Debug APK после успешной сборки находится по пути:
 
-Never store database credentials or server secrets in this Android repository or APK. Use HTTPS, short-lived access tokens, refresh-token rotation, server-side authorization, and rate limits. OTP delivery requires server-side SMS/email providers.
+`app/build/outputs/apk/debug/app-debug.apk`
+
+В проекте намеренно нет GitHub Actions. Для сборки нужны JDK 17, Android SDK 35 и доступ к Maven/Google репозиториям для загрузки зависимостей.
+
+## Важно
+
+- Не добавляй пароль базы данных или серверные секреты в APK.
+- Реальные регистрация, подтверждение email и сообщения требуют доступного API на хостинге.
+- UI-код и успешная компиляция сами по себе не подтверждают работу API или сквозного шифрования.
