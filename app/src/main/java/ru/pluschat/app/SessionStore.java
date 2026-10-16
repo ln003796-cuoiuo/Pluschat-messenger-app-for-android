@@ -21,11 +21,26 @@ public final class SessionStore {
         try { return prefs(context).getString("access_token", ""); }
         catch (Exception e) { return ""; }
     }
+    public static String deviceKey(Context context) {
+        try {
+            SharedPreferences p = prefs(context);
+            String key = p.getString("device_key", "");
+            if (key.matches("[a-fA-F0-9]{64}")) return key;
+            byte[] bytes = new byte[32];
+            new java.security.SecureRandom().nextBytes(bytes);
+            StringBuilder out = new StringBuilder(64);
+            for (byte b : bytes) out.append(String.format(java.util.Locale.ROOT, "%02x", b & 0xff));
+            key = out.toString();
+            p.edit().putString("device_key", key).apply();
+            return key;
+        } catch (Exception e) { return ""; }
+    }
+
     public static void save(Context context, String accessToken, String refreshToken) throws Exception {
         prefs(context).edit().putString("access_token", accessToken)
             .putString("refresh_token", refreshToken).apply();
     }
     public static void clear(Context context) {
-        try { prefs(context).edit().clear().apply(); } catch (Exception ignored) {}
+        try { SharedPreferences p = prefs(context); String device = p.getString("device_key", ""); p.edit().clear().putString("device_key", device).apply(); } catch (Exception ignored) {}
     }
 }
