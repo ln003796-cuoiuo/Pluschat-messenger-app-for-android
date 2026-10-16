@@ -1018,30 +1018,77 @@ public class MainActivity extends Activity {
 
     private void privacyScreen() {
         title("Приватность и безопасность");
-        subtitle("Ты контролируешь видимость своего профиля.");
-        String[][] options = {
-            {"Номер телефона", "Никто"},
-            {"Дата рождения", "Только вы"},
-            {"Добавление в группы", "Мои контакты"},
-            {"Предпросмотр сообщений", "Скрывать содержимое"},
-            {"Активные устройства", "Управление сессиями"}
-        };
-        for (String[] option : options) {
-            LinearLayout item = new LinearLayout(this);
-            item.setOrientation(LinearLayout.VERTICAL);
-            item.setPadding(dp(15), dp(13), dp(15), dp(13));
-            item.setBackground(shape(0xff131720, 15));
-            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
-            p.setMargins(0, dp(4), 0, dp(4));
-            item.addView(text(option[0], 14, true, white));
-            item.addView(text(option[1], 12, false, muted));
-            TextView chevron = text("›", 23, false, muted);
-            chevron.setGravity(Gravity.CENTER);
-            item.addView(chevron, new LinearLayout.LayoutParams(-1, 24));
-            item.setOnClickListener(v -> message("Настройка «" + option[0] + "» будет подключена к серверным правилам приватности."));
-            body.addView(item, p);
-        }
-        body.addView(button("Двухэтапная аутентификация", () -> showPage("twofa_setup")));
+        subtitle("Эти параметры сохраняются на основном сервере Pluschat.");
+        body.addView(text("Кто может видеть профиль", 14, true, white));
+        Spinner visibility = new Spinner(this);
+        String[] labels = {"Все пользователи", "Мои контакты", "Никто"};
+        String[] values = {"everyone", "contacts", "nobody"};
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, labels);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        visibility.setAdapter(adapter);
+        body.addView(visibility);
+
+        Switch showBirth = new Switch(this);
+        showBirth.setText("Показывать дату рождения");
+        showBirth.setTextColor(white);
+        body.addView(showBirth);
+        Switch showLocal = new Switch(this);
+        showLocal.setText("Показывать местную группу");
+        showLocal.setTextColor(white);
+        body.addView(showLocal);
+        Switch shareLocation = new Switch(this);
+        shareLocation.setText("Разрешить использование кода района");
+        shareLocation.setTextColor(white);
+        body.addView(shareLocation);
+        Switch notifications = new Switch(this);
+        notifications.setText("Получать уведомления");
+        notifications.setTextColor(white);
+        body.addView(notifications);
+
+        EditText area = input("Код района (необязательно)", false);
+        body.addView(area);
+        final boolean[] loaded = {false};
+        request("GET", "settings", null, true, (data, error) -> {
+            JSONObject settings = data.optJSONObject("settings");
+            if (settings == null) return;
+            String selected = settings.optString("profile_visibility", "everyone");
+            for (int i = 0; i < values.length; i++) if (values[i].equals(selected)) visibility.setSelection(i);
+            showBirth.setChecked(settings.optInt("show_birth_date", 0) == 1);
+            showLocal.setChecked(settings.optInt("show_local_group", 0) == 1);
+            shareLocation.setChecked(settings.optInt("location_sharing", 0) == 1);
+            notifications.setChecked(settings.optInt("notifications_enabled", 1) == 1);
+            area.setText(settings.optString("area_code", ""));
+            loaded[0] = true;
+        });
+        visibility.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                if (loaded[0]) request("POST", "settings", ApiClient.json("profile_visibility", values[position]), true,
+                        (data, error) -> { if (data.optBoolean("ok", false)) message("Видимость профиля сохранена."); });
+            }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
+        showBirth.setOnCheckedChangeListener((buttonView, checked) -> {
+            if (loaded[0]) request("POST", "settings", ApiClient.json("show_birth_date", checked), true,
+                    (data, error) -> { if (data.optBoolean("ok", false)) message("Настройка даты рождения сохранена."); });
+        });
+        showLocal.setOnCheckedChangeListener((buttonView, checked) -> {
+            if (loaded[0]) request("POST", "settings", ApiClient.json("show_local_group", checked), true,
+                    (data, error) -> { if (data.optBoolean("ok", false)) message("Настройка местной группы сохранена."); });
+        });
+        shareLocation.setOnCheckedChangeListener((buttonView, checked) -> {
+            if (loaded[0]) request("POST", "settings", ApiClient.json("location_sharing", checked), true,
+                    (data, error) -> { if (data.optBoolean("ok", false)) message("Настройка района сохранена."); });
+        });
+        notifications.setOnCheckedChangeListener((buttonView, checked) -> {
+            if (loaded[0]) request("POST", "settings", ApiClient.json("notifications_enabled", checked), true,
+                    (data, error) -> { if (data.optBoolean("ok", false)) message("Настройки уведомлений сохранены."); });
+        });
+        body.addView(button("Сохранить код района", () -> {
+            request("POST", "settings", ApiClient.json("area_code", value(area)), true,
+                    (data, error) -> message(data.optBoolean("ok", false) ? "Код района сохранён." : "Не удалось сохранить код района."));
+        }));
+        body.addView(text("Двухэтапная аутентификация обязательна для доступа к перепискам.", 12, false, muted));
+        body.addView(button("Активные устройства", () -> showPage("devices")));
         body.addView(button("Разрешения Android", () -> showPage("permissions")));
         body.addView(button("Назад к настройкам", () -> showPage("settings")));
     }
@@ -1049,10 +1096,13 @@ public class MainActivity extends Activity {
     private void chatInfoScreen() {
         title(currentChatTitle.isEmpty() ? "Информация о чате" : currentChatTitle);
         subtitle("Настройки и материалы переписки");
-        body.addView(button("Медиа и файлы", () -> message("Раздел медиа появится после подключения загрузок файлов.")));
-        body.addView(button("Поиск в переписке", () -> showPage("search")));
-        body.addView(button("Уведомления", () -> message("Настройки уведомлений чата появятся отдельно.")));
-        body.addView(button("Очистить историю", () -> message("История на сервере не изменена.")));
+        body.addView(button("Медиа и файлы", () -> {
+            message("Вложения зашифрованы и отображаются карточками в переписке.");
+            showPage("chat");
+        }));
+        body.addView(button("Поиск в переписке", () -> showPage("chat_search")));
+        body.addView(button("Уведомления", () -> showPage("notifications")));
+        body.addView(button("Очистить историю у меня", this::clearCurrentChatHistory));
         body.addView(button("Назад в переписку", () -> showPage("chat")));
     }
 
