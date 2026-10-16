@@ -252,13 +252,15 @@ public class MainActivity extends Activity {
     private void registerScreen() {
         title("Создать аккаунт");
         subtitle("Создай аккаунт Pluschat. Мы отправим код подтверждения на твою почту.");
-        emailField = input("Электронная почта", false); body.addView(emailField);
-        passwordField = input("Пароль (минимум 10 символов)", true); body.addView(passwordField);
-        confirmPasswordField = input("Повторите пароль", true); body.addView(confirmPasswordField);
         firstNameField = input("Имя *", false); body.addView(firstNameField);
         lastNameField = input("Фамилия (необязательно)", false); body.addView(lastNameField);
-        usernameField = input("Username: латиница, цифры, _", false); body.addView(usernameField);
-        birthField = input("Дата рождения YYYY-MM-DD (необязательно)", false); body.addView(birthField);
+        usernameField = input("Имя пользователя: латиница, цифры, _", false); body.addView(usernameField);
+        emailField = input("Электронная почта", false);
+        emailField.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
+        body.addView(emailField);
+        passwordField = input("Пароль (минимум 10 символов)", true); body.addView(passwordField);
+        confirmPasswordField = input("Повторите пароль", true); body.addView(confirmPasswordField);
+        birthField = input("Дата рождения · необязательно (ГГГГ-ММ-ДД)", false); body.addView(birthField);
         CheckBox terms = new CheckBox(this);
         terms.setText("Я согласен(на) с условиями сервиса");
         terms.setTextColor(lightMode ? 0xff282438 : white);
