@@ -474,7 +474,9 @@ public class MainActivity extends Activity {
             } else {
                 for (JSONObject chat : chats) {
                     String id = chat.optString("id", chat.optString("chat_id", ""));
-                    JSONObject peer = chat.optJSONObject("other_user");\n                    String name = chat.optString("title", chat.optString("name", peer == null ? "Чат" : (peer.optString("first_name","")+" "+peer.optString("last_name","")).trim()));\n                    if (name.isEmpty() || name.equals("Чат")) name = peer == null ? "Чат" : "@"+peer.optString("username","user");
+                    JSONObject peer = chat.optJSONObject("other_user");
+                    String name = chat.optString("title", chat.optString("name", peer == null ? "Чат" : (peer.optString("first_name","")+" "+peer.optString("last_name","")).trim()));
+                    if (name.isEmpty() || name.equals("Чат")) name = peer == null ? "Чат" : "@"+peer.optString("username","user");
                     String preview = chat.optString("last_message", "Открыть переписку");
                     LinearLayout item = row();
                     item.setPadding(dp(12), dp(13), dp(12), dp(13));
