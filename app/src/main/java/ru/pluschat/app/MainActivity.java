@@ -631,7 +631,8 @@ public class MainActivity extends Activity {
         LinearLayout results=new LinearLayout(this);results.setOrientation(LinearLayout.VERTICAL);body.addView(results);
         body.addView(button("Поиск",()->{
             results.removeAllViews();String query=value(q);
-            request("GET","search?q="+android.net.Uri.encode(query),null,true,(data,error)->{
+            if(query.trim().length()<2){results.addView(text("Введите минимум 2 символа для поиска.",14,false,muted));return;}
+            request("GET","users/search?q="+android.net.Uri.encode(query.trim()),null,true,(data,error)->{
                 JSONArray arr=data.optJSONArray("users");if(arr==null)arr=data.optJSONArray("data");
                 if(arr==null||arr.length()==0){results.addView(text("Пользователи не найдены или API ещё не подключён.",14,false,muted));return;}
                 for(int i=0;i<arr.length();i++){JSONObject u=arr.optJSONObject(i);if(u==null)continue;
@@ -702,14 +703,42 @@ public class MainActivity extends Activity {
     }
 
     private void profileScreen() {
-        title("Мой профиль");subtitle("Обнови данные профиля. Изменения сохраняются на сервере.");
-        EditText name=input("Имя",false), surname=input("Фамилия",false), username=input("@username",false), bio=input("Описание",false), birth=input("Дата рождения YYYY-MM-DD",false), edu=input("Учёба / работа",false);
+        title("Мой профиль");
+        subtitle("Имя, фамилия и дата рождения сохраняются в основном профиле.");
+        EditText name=input("Имя",false);
+        EditText surname=input("Фамилия",false);
+        EditText birth=input("Дата рождения YYYY-MM-DD",false);
         body.addView(button("Выбрать аватарку", this::pickAvatar));
-        if (selectedAvatar != null) subtitle("Выбран файл аватарки.");
-        body.addView(button("Загрузить выбранную аватарку", () -> { if (selectedAvatar == null) { message("Сначала выбери изображение."); return; } ApiClient.uploadFile(this, selectedAvatar, "me/avatar", SessionStore.token(this), (data,error) -> { if(error!=null)message(error);else message("Аватар обновлён."); }); }));
-        body.addView(name);body.addView(surname);body.addView(username);body.addView(bio);body.addView(birth);body.addView(edu);
-        request("GET","auth/me",null,true,(data,error)->{JSONObject u=data.optJSONObject("user");if(u==null)u=data;name.setText(u.optString("first_name",""));surname.setText(u.optString("last_name",""));username.setText(u.optString("username",""));bio.setText(u.optString("bio",""));birth.setText(u.optString("birth_date",""));edu.setText(u.optString("education",""));});
-        body.addView(button("Сохранить профиль",()->request("POST","auth/profile",ApiClient.json("first_name",value(name),"last_name",value(surname),"username",value(username).replaceFirst("^@",""),"bio",value(bio),"birth_date",value(birth),"education",value(edu)),true,(data,error)->message("Профиль сохранён."))));
+        if (selectedAvatar != null) subtitle("Выбрано изображение для аватарки.");
+        body.addView(button("Загрузить выбранную аватарку", () -> {
+            if (selectedAvatar == null) { message("Сначала выбери изображение."); return; }
+            ApiClient.uploadFile(this, selectedAvatar, "me/avatar", SessionStore.token(this), (data,error) -> {
+                if(error!=null) message(error);
+                else message("Сервер принял запрос на обновление аватара.");
+            });
+        }));
+        body.addView(name);
+        body.addView(surname);
+        body.addView(birth);
+        request("GET","auth/me",null,true,(data,error)->{
+            JSONObject u=data.optJSONObject("user");
+            if(u==null)u=data;
+            name.setText(u.optString("first_name",""));
+            surname.setText(u.optString("last_name",""));
+            birth.setText(u.optString("birth_date",""));
+        });
+        body.addView(button("Сохранить профиль",()->{
+            String birthDate=value(birth);
+            if(!birthDate.isEmpty() && !birthDate.matches("\\d{4}-\\d{2}-\\d{2}")) {
+                message("Дата должна быть в формате YYYY-MM-DD.");
+                return;
+            }
+            request("POST","auth/profile",ApiClient.json(
+                "first_name",value(name),
+                "last_name",value(surname),
+                "birth_date",birthDate
+            ),true,(data,error)->message("Профиль сохранён."));
+        }));
         body.addView(button("Назад",()->showPage("home")));
     }
     private void settingsScreen() {
