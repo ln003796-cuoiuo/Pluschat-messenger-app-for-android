@@ -49,6 +49,11 @@ public final class SessionStore {
     }
 
     public static void clear(Context context) {
-        try { SharedPreferences p = prefs(context); String device = p.getString("device_key", ""); p.edit().clear().putString("device_key", device).apply(); } catch (Exception ignored) {}
+        // Keep device binding and E2EE private keys across logout. Deleting crypto keys
+        // while the server still pins the old public identity would make this device
+        // unable to register again or decrypt its existing messages.
+        try {
+            prefs(context).edit().remove("access_token").remove("refresh_token").apply();
+        } catch (Exception ignored) {}
     }
 }
