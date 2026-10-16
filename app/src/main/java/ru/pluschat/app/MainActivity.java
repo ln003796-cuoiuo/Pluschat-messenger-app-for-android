@@ -370,6 +370,7 @@ public class MainActivity extends Activity {
             if(setupId[0].isEmpty()){message("Сначала нажми «Настроить 2FA».");return;}
             request("POST","auth/2fa/confirm",ApiClient.json("setup_id",setupId[0],"code",value(code)),true,(data,error)->{
                 if (!data.optBoolean("ok", false)) { message("Не удалось включить 2FA. Проверь код и повтори."); return; }
+                if (!saveSession(data)) return;
                 message("Двухэтапная аутентификация включена.");
                 registerCryptoKeys(() -> showPage("home"));
             });
