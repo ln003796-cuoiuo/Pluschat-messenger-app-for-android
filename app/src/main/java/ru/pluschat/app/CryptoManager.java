@@ -156,6 +156,23 @@ public final class CryptoManager {
         }
     }
 
+    public static boolean verifyAndPinPeerKey(Context context, String peerUserId, JSONObject key) {
+        String identity = key.optString("identity_public_key", "");
+        String prekey = key.optString("signed_prekey", "");
+        String signature = key.optString("signed_prekey_signature", "");
+        String deviceId = key.optString("key_id", "");
+        if (!deviceId.matches("[a-f0-9]{64}") || !verifyPeerKey(identity, prekey, signature)) return false;
+        String pinName = "peer_identity_" + peerUserId + "_" + deviceId;
+        String pinned = SessionStore.cryptoGet(context, pinName);
+        if (!pinned.isEmpty()) return MessageDigest.isEqual(pinned.getBytes(StandardCharsets.UTF_8), identity.getBytes(StandardCharsets.UTF_8));
+        try {
+            SessionStore.cryptoPut(context, pinName, identity);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public static String deviceHash(Context context) {
         return deviceHash(SessionStore.deviceKey(context));
     }
