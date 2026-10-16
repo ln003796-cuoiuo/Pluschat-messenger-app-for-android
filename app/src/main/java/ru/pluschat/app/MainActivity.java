@@ -255,11 +255,18 @@ public class MainActivity extends Activity {
             emailField = input("Электронная почта", false); body.addView(emailField);
             passwordField = input("Пароль (минимум 10 символов)", true); body.addView(passwordField);
             confirmPasswordField = input("Повторите пароль", true); body.addView(confirmPasswordField);
+            CheckBox terms = new CheckBox(this);
+            terms.setText("Я согласен(на) с условиями сервиса");
+            terms.setTextColor(white);
+            terms.setTextSize(12);
+            if (android.os.Build.VERSION.SDK_INT >= 21) terms.setButtonTintList(android.content.res.ColorStateList.valueOf(0xff8875ff));
+            body.addView(terms);
             body.addView(button("Продолжить", () -> {
                 String email = value(emailField), password = value(passwordField), confirm = value(confirmPasswordField);
                 if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) { message("Введи корректный email."); return; }
                 if (password.length() < 10) { message("Пароль должен содержать не менее 10 символов."); return; }
                 if (!password.equals(confirm)) { message("Пароли не совпадают."); return; }
+                if (!terms.isChecked()) { message("Подтвердите согласие с условиями сервиса."); return; }
                 registrationEmail = email; registrationPassword = password;
                 request("POST", "auth/registration/email/start", ApiClient.json("email", email), false, (data,error)-> {
                     emailChallenge = data.optString("challenge_id", "");
