@@ -102,7 +102,7 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(lightMode ? Color.WHITE : 0xff0b0d12);
         getWindow().setNavigationBarColor(lightMode ? Color.WHITE : 0xff0b0d12);
         if (android.os.Build.VERSION.SDK_INT >= 23) getWindow().getDecorView().setSystemUiVisibility(lightMode ? View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR : 0);
-        boolean authFlow = target.equals("welcome") || target.equals("auth") || target.equals("register") || target.equals("verify_email") || target.equals("twofa") || target.equals("twofa_setup");
+        boolean authFlow = target.equals("welcome") || target.equals("auth") || target.equals("register") || target.equals("verify_email") || target.equals("twofa") || target.equals("twofa_setup") || target.equals("forgot_password");
         boolean conversation = target.equals("chat");
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
@@ -133,7 +133,7 @@ public class MainActivity extends Activity {
 
         boolean signedIn = !SessionStore.token(this).isEmpty()
                 && !target.equals("auth") && !target.equals("register") && !target.equals("verify_email")
-                && !target.equals("twofa") && !target.equals("twofa_setup");
+                && !target.equals("twofa") && !target.equals("twofa_setup") && !target.equals("forgot_password");
         if (signedIn && !conversation) {
             LinearLayout nav = new LinearLayout(this);
             nav.setOrientation(LinearLayout.HORIZONTAL);
@@ -149,6 +149,8 @@ public class MainActivity extends Activity {
         setContentView(root);
         if (target.equals("welcome")) welcomeScreen();
         else if (target.equals("auth")) authScreen();
+        else if (target.equals("forgot_password")) forgotPasswordScreen();
+        else if (target.equals("devices")) devicesScreen();
         else if (target.equals("register")) registerScreen();
         else if (target.equals("verify_email")) verifyEmailScreen();
         else if (target.equals("home")) homeScreen();
@@ -251,12 +253,66 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams passwordLabelParams = new LinearLayout.LayoutParams(-1, -2); passwordLabelParams.setMargins(0, dp(10), 0, dp(2)); body.addView(passwordLabel, passwordLabelParams);
         loginPasswordField = input("Введите пароль", true); body.addView(loginPasswordField);
         TextView forgot = text("Забыли пароль?", 12, true, 0xffb7adff); forgot.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-        forgot.setPadding(0, dp(6), 0, dp(12)); forgot.setOnClickListener(v -> message("Восстановление пароля будет доступно после подключения серверного API.")); body.addView(forgot);
+        forgot.setPadding(0, dp(6), 0, dp(12)); forgot.setOnClickListener(v -> showPage("forgot_password")); body.addView(forgot);
         body.addView(button("Войти", this::login));
         TextView divider = text("или продолжить с", 12, false, muted); divider.setGravity(Gravity.CENTER); divider.setPadding(0, dp(16), 0, dp(8)); body.addView(divider);
-        body.addView(button("✉   Получить код на почту", () -> message("Вход по одноразовому коду будет подключён вместе с серверным API.")));
+        body.addView(text("После пароля потребуется одноразовый код двухэтапной защиты.", 12, false, muted));
         TextView signup = text("Нет аккаунта?  Создать", 13, true, 0xffb7adff); signup.setGravity(Gravity.CENTER); signup.setPadding(0, dp(22), 0, dp(12)); signup.setOnClickListener(v -> { registrationStage = "email"; showPage("register"); }); body.addView(signup);
     }
+    private void forgotPasswordScreen() {
+        title("Восстановление пароля");
+        subtitle("Укажи email аккаунта. Если он существует и подтверждён, мы отправим ссылку для смены пароля.");
+        EditText email = input("Электронная почта", false);
+        email.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
+        body.addView(email);
+        body.addView(button("Отправить ссылку", () -> {
+            String address = value(email).trim().toLowerCase(java.util.Locale.ROOT);
+            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(address).matches()) {
+                message("Введи корректный email.");
+                return;
+            }
+            request("POST", "auth/password/forgot", ApiClient.json("email", address), false, (data, error) -> {
+                message(data.optString("message", "Если аккаунт существует, письмо будет отправлено."));
+                showPage("auth");
+            });
+        }));
+        body.addView(button("Назад ко входу", () -> showPage("auth")));
+    }
+
+    private void devicesScreen() {
+        title("Активные устройства");
+        subtitle("Здесь можно отозвать потерянное или больше не используемое устройство.");
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        body.addView(list);
+        request("GET", "devices", null, true, (data, error) -> {
+            JSONArray devices = data.optJSONArray("devices");
+            if (devices == null || devices.length() == 0) {
+                list.addView(text("Активных устройств не найдено.", 14, false, muted));
+                return;
+            }
+            for (int i = 0; i < devices.length(); i++) {
+                JSONObject device = devices.optJSONObject(i);
+                if (device == null) continue;
+                String id = device.optString("id", "");
+                String name = device.optString("device_name", "Устройство");
+                String platform = device.optString("platform", "unknown");
+                String lastSeen = device.optString("last_seen_at", "");
+                list.addView(text(name + " · " + platform + "\\nПоследняя активность: " + lastSeen, 13, false, white));
+                list.addView(button("Отозвать это устройство", () -> request("POST", "devices/" + id + "/revoke",
+                        new JSONObject(), true, (result, revokeError) -> {
+                    if (result.optBoolean("ok", false)) {
+                        message("Доступ устройства отозван.");
+                        showPage("devices");
+                    }
+                })));
+            }
+        });
+        body.addView(button("Завершить остальные сессии", () -> request("POST", "auth/sessions/revoke-others",
+                new JSONObject(), true, (result, error) -> message("Остальные сессии отозваны."))));
+        body.addView(button("Назад", () -> showPage("settings")));
+    }
+
     private void registerScreen() {
         title("Создать аккаунт");
         subtitle("Создай аккаунт Pluschat. Мы отправим код подтверждения на твою почту.");
@@ -930,7 +986,7 @@ public class MainActivity extends Activity {
         body.addView(button("Приватность и безопасность  ›", () -> showPage("privacy")));
         body.addView(button("Уведомления", () -> showPage("notifications")));
         body.addView(text("Двухэтапная аутентификация обязательна. Изменить или отключить её без повторной проверки личности нельзя.", 12, false, muted));
-        body.addView(button("Активные устройства", () -> message("Управление сессиями появится после подключения API устройств.")));
+        body.addView(button("Активные устройства", () -> showPage("devices")));
         body.addView(button("Разрешения Android", () -> showPage("permissions")));
         body.addView(button("Выйти из аккаунта", this::logout));
         body.addView(button("Назад", () -> showPage("home")));
