@@ -10,6 +10,8 @@ import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.Provider;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import java.security.Signature;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
@@ -26,6 +28,7 @@ import javax.crypto.spec.SecretKeySpec;
  */
 public final class CryptoManager {
     private static final String VERSION = "pc-e2ee-v1";
+    private static final Provider BC = new BouncyCastleProvider();
     private static final byte[] ED25519_X509_PREFIX = hex("302a300506032b6570032100");
     private static final byte[] X25519_X509_PREFIX = hex("302a300506032b656e032100");
 
@@ -59,13 +62,13 @@ public final class CryptoManager {
         String signature = SessionStore.cryptoGet(context, "signed_prekey_signature");
         if (identityPrivate.isEmpty() || identityPublic.isEmpty() || prekeyPrivate.isEmpty()
                 || prekeyPublic.isEmpty() || signature.isEmpty()) {
-            KeyPairGenerator edGenerator = KeyPairGenerator.getInstance("Ed25519");
+            KeyPairGenerator edGenerator = KeyPairGenerator.getInstance("Ed25519", BC);
             KeyPair identity = edGenerator.generateKeyPair();
-            KeyPairGenerator xGenerator = KeyPairGenerator.getInstance("X25519");
+            KeyPairGenerator xGenerator = KeyPairGenerator.getInstance("X25519", BC);
             KeyPair prekey = xGenerator.generateKeyPair();
             byte[] rawIdentity = rawPublic(identity.getPublic().getEncoded());
             byte[] rawPrekey = rawPublic(prekey.getPublic().getEncoded());
-            Signature signer = Signature.getInstance("Ed25519");
+            Signature signer = Signature.getInstance("Ed25519", BC);
             signer.initSign(identity.getPrivate());
             signer.update(rawPrekey);
             byte[] sig = signer.sign();
@@ -142,9 +145,9 @@ public final class CryptoManager {
             byte[] prekeyRaw = unb64(signedPrekey);
             byte[] signatureRaw = unb64(signature);
             if (identityRaw.length != 32 || prekeyRaw.length != 32 || signatureRaw.length != 64) return false;
-            PublicKey identity = KeyFactory.getInstance("Ed25519").generatePublic(
+            PublicKey identity = KeyFactory.getInstance("Ed25519", BC).generatePublic(
                     new X509EncodedKeySpec(concat(ED25519_X509_PREFIX, identityRaw)));
-            Signature verifier = Signature.getInstance("Ed25519");
+            Signature verifier = Signature.getInstance("Ed25519", BC);
             verifier.initVerify(identity);
             verifier.update(prekeyRaw);
             return verifier.verify(signatureRaw);
@@ -166,9 +169,9 @@ public final class CryptoManager {
         byte[] privateBytes = unb64(privateB64);
         byte[] peerRaw = unb64(peerPublicB64);
         if (peerRaw.length != 32) throw new IllegalArgumentException("Invalid peer prekey");
-        PrivateKey privateKey = KeyFactory.getInstance("X25519").generatePrivate(new PKCS8EncodedKeySpec(privateBytes));
-        PublicKey publicKey = KeyFactory.getInstance("X25519").generatePublic(new X509EncodedKeySpec(concat(X25519_X509_PREFIX, peerRaw)));
-        KeyAgreement agreement = KeyAgreement.getInstance("X25519");
+        PrivateKey privateKey = KeyFactory.getInstance("X25519", BC).generatePrivate(new PKCS8EncodedKeySpec(privateBytes));
+        PublicKey publicKey = KeyFactory.getInstance("X25519", BC).generatePublic(new X509EncodedKeySpec(concat(X25519_X509_PREFIX, peerRaw)));
+        KeyAgreement agreement = KeyAgreement.getInstance("X25519", BC);
         agreement.init(privateKey);
         agreement.doPhase(publicKey, true);
         return agreement.generateSecret();
