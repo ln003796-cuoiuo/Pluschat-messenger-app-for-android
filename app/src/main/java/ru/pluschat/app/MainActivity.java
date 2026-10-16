@@ -671,7 +671,7 @@ public class MainActivity extends Activity {
                         String peerShort = mine ? pair[1] : pair[0];
                         JSONObject peerKey = findPeerKey(keys, peerShort);
                         if (peerKey == null) throw new IllegalArgumentException("Ключ устройства собеседника не найден");
-                        if (!CryptoManager.verifyPeerKey(peerKey.optString("identity_public_key"), peerKey.optString("signed_prekey"), peerKey.optString("signed_prekey_signature"))) {
+                        if (!CryptoManager.verifyAndPinPeerKey(this, currentPeerId, peerKey)) {
                             throw new IllegalArgumentException("Подпись ключа собеседника недействительна");
                         }
                         displayedBody = CryptoManager.decrypt(this, currentChatId, envelope.toString(), peerKey.optString("key_id"), peerKey.optString("signed_prekey"));
@@ -722,14 +722,12 @@ public class MainActivity extends Activity {
             ApiClient.request("POST", "security/keys", payload, SessionStore.token(this), (data, error) -> {
                 if (error != null || !data.optBoolean("ok", false)) {
                     message("Не удалось подключить ключи шифрования. " + (error == null ? data.optString("error", "") : error));
-                    if (onSuccess != null) onSuccess.run();
                     return;
                 }
                 if (onSuccess != null) onSuccess.run();
             });
         } catch (Exception e) {
             message("Не удалось создать ключи шифрования на устройстве.");
-            if (onSuccess != null) onSuccess.run();
         }
     }
 
