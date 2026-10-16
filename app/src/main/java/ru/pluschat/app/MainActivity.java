@@ -95,6 +95,7 @@ public class MainActivity extends Activity {
         getWindow().setNavigationBarColor(lightMode ? Color.WHITE : 0xff0b0d12);
         if (android.os.Build.VERSION.SDK_INT >= 23) getWindow().getDecorView().setSystemUiVisibility(lightMode ? View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR : 0);
         boolean authFlow = target.equals("welcome") || target.equals("auth") || target.equals("register") || target.equals("twofa");
+        boolean conversation = target.equals("chat");
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
@@ -113,18 +114,19 @@ public class MainActivity extends Activity {
         brandText.addView(brand);
         brandText.addView(tagline);
         header.addView(brandText, new LinearLayout.LayoutParams(0, -2, 1));
-        if (!authFlow) root.addView(header, new LinearLayout.LayoutParams(-1, dp(72)));
+        if (!authFlow && !conversation) root.addView(header, new LinearLayout.LayoutParams(-1, dp(72)));
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
         body = column();
         body.setPadding(dp(20), dp(16), dp(20), dp(24));
         scroll.addView(body);
-        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        if (conversation) root.addView(body, new LinearLayout.LayoutParams(-1, 0, 1));
+        else root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
 
         boolean signedIn = !SessionStore.token(this).isEmpty()
                 && !target.equals("auth") && !target.equals("register")
                 && !target.equals("twofa");
-        if (signedIn) {
+        if (signedIn && !conversation) {
             LinearLayout nav = new LinearLayout(this);
             nav.setOrientation(LinearLayout.HORIZONTAL);
             nav.setGravity(Gravity.CENTER);
@@ -523,19 +525,75 @@ public class MainActivity extends Activity {
     }
 
     private void chatScreen() {
-        title(currentChatTitle.isEmpty()?"Переписка":currentChatTitle);
-        body.addView(button("← К чатам",()->showPage("home")));
-        body.addView(button("Информация о чате  ›",()->showPage("chat_info")));
+        body.setPadding(0, 0, 0, 0);
+        LinearLayout chatHeader = row();
+        chatHeader.setPadding(dp(14), dp(10), dp(14), dp(10));
+        chatHeader.setBackgroundColor(0xff0f1219);
+        TextView back = text("‹", 32, false, white);
+        back.setGravity(Gravity.CENTER);
+        chatHeader.addView(back, new LinearLayout.LayoutParams(dp(34), dp(48)));
+        back.setOnClickListener(v -> showPage("home"));
+
+        TextView avatar = text(currentChatTitle.isEmpty() ? "П" : currentChatTitle.substring(0, 1).toUpperCase(), 17, true, 0xffd7d0ff);
+        avatar.setGravity(Gravity.CENTER);
+        avatar.setBackground(shape(0xff292443, 28));
+        LinearLayout.LayoutParams avatarParams = new LinearLayout.LayoutParams(dp(42), dp(42));
+        avatarParams.setMargins(dp(8), 0, dp(10), 0);
+        chatHeader.addView(avatar, avatarParams);
+
+        LinearLayout identity = new LinearLayout(this);
+        identity.setOrientation(LinearLayout.VERTICAL);
+        identity.addView(text(currentChatTitle.isEmpty() ? "Переписка" : currentChatTitle, 15, true, white));
+        identity.addView(text("Личная переписка", 11, false, muted));
+        identity.setOnClickListener(v -> showPage("chat_info"));
+        chatHeader.addView(identity, new LinearLayout.LayoutParams(0, -2, 1));
+
+        TextView call = text("☎", 21, true, 0xffb9adff);
+        call.setGravity(Gravity.CENTER);
+        chatHeader.addView(call, new LinearLayout.LayoutParams(dp(42), dp(46)));
+        call.setOnClickListener(v -> message("Голосовые и видеозвонки ещё не подключены."));
+        TextView more = text("⋯", 24, true, white);
+        more.setGravity(Gravity.CENTER);
+        chatHeader.addView(more, new LinearLayout.LayoutParams(dp(34), dp(46)));
+        more.setOnClickListener(v -> showPage("chat_info"));
+        body.addView(chatHeader, new LinearLayout.LayoutParams(-1, dp(68)));
+
+        ScrollView historyScroll = new ScrollView(this);
+        historyScroll.setFillViewport(true);
         LinearLayout history = new LinearLayout(this);
         history.setOrientation(LinearLayout.VERTICAL);
-        history.setPadding(0, 10, 0, 10);
-        body.addView(history, new LinearLayout.LayoutParams(-1, -2));
-        messageField=input("Сообщение…",false);body.addView(messageField);
-        body.addView(button("Отправить",()->{
-            String msg=value(messageField);if(msg.trim().isEmpty())return;
-            String clientId=java.util.UUID.randomUUID().toString();
-            request("POST","chats/"+currentChatId+"/messages",ApiClient.json("client_message_id",clientId,"type","text","body",msg),true,(data,error)->{messageField.setText("");refreshChatHistory(history);});
-        }));
+        history.setPadding(dp(16), dp(14), dp(16), dp(14));
+        historyScroll.addView(history);
+        body.addView(historyScroll, new LinearLayout.LayoutParams(-1, 0, 1));
+
+        LinearLayout composer = row();
+        composer.setPadding(dp(12), dp(8), dp(12), dp(8));
+        composer.setBackgroundColor(0xff0f1219);
+        TextView attach = text("+", 26, false, 0xffb9adff);
+        attach.setGravity(Gravity.CENTER);
+        composer.addView(attach, new LinearLayout.LayoutParams(dp(42), dp(48)));
+        attach.setOnClickListener(v -> message("Прикрепление файлов будет доступно после подключения загрузки вложений."));
+        messageField = input("Сообщение…", false);
+        messageField.setSingleLine(true);
+        messageField.setBackground(shape(0xff171b24, 22));
+        messageField.setPadding(dp(15), dp(8), dp(15), dp(8));
+        LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(0, dp(48), 1);
+        inputParams.setMargins(dp(4), 0, dp(8), 0);
+        composer.addView(messageField, inputParams);
+        TextView send = text("➤", 20, true, Color.WHITE);
+        send.setGravity(Gravity.CENTER);
+        send.setBackground(shape(0xff6f5bea, 24));
+        composer.addView(send, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        send.setOnClickListener(v -> {
+            String msg = value(messageField);
+            if (msg.isEmpty()) return;
+            String clientId = java.util.UUID.randomUUID().toString();
+            request("POST", "chats/" + currentChatId + "/messages",
+                ApiClient.json("client_message_id", clientId, "type", "text", "body", msg), true,
+                (data, error) -> { messageField.setText(""); refreshChatHistory(history); });
+        });
+        body.addView(composer, new LinearLayout.LayoutParams(-1, -2));
+
         refreshChatHistory(history);
         chatPoll = new Runnable() {
             @Override public void run() {
