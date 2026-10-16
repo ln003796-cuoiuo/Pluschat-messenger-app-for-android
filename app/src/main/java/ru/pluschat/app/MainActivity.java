@@ -668,15 +668,15 @@ public class MainActivity extends Activity {
     }
 
     private void contactsScreen() {
-        title("Контакты"); subtitle("Люди, с которыми ты можешь быстро начать переписку.");
+        title("Контакты"); subtitle("Люди из твоих существующих переписок.");
         LinearLayout results=new LinearLayout(this);results.setOrientation(LinearLayout.VERTICAL);body.addView(results);
-        request("GET","contacts",null,true,(data,error)->{
-            JSONArray arr=data.optJSONArray("contacts");if(arr==null)arr=data.optJSONArray("data");
+        request("GET","conversations",null,true,(data,error)->{
+            JSONArray arr=data.optJSONArray("conversations");if(arr==null)arr=data.optJSONArray("data");
             if(arr==null||arr.length()==0){results.addView(text("Контактов пока нет. Найди пользователя по username.",14,false,muted));return;}
             for(int i=0;i<arr.length();i++){JSONObject u=arr.optJSONObject(i);if(u==null)continue;
                 String id=u.optString("id",u.optString("user_id",""));
                 String name=u.optString("first_name","")+" "+u.optString("last_name","")+"  @"+u.optString("username","");
-                results.addView(button(name,()->request("POST","conversations",ApiClient.json("user_id",id),true,(chatData,apiError)->{currentChatId=chatData.optString("id",chatData.optString("chat_id",""));currentChatTitle=name;showPage("chat");})));
+                results.addView(button(name,()->request("POST","conversations",ApiClient.json("user_id",id),true,(chatData,apiError)->{currentChatId=chatData.optString("conversation_id",chatData.optString("id",chatData.optString("chat_id","")));currentChatTitle=name;showPage("chat");})));
             }
         });
         body.addView(button("Найти пользователя",()->showPage("search")));
