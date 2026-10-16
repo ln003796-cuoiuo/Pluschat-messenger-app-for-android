@@ -139,6 +139,43 @@ public final class CryptoManager {
         return new String(plaintext, StandardCharsets.UTF_8);
     }
 
+    public static byte[] encryptFile(Context context, String conversationId, byte[] plaintext,
+                                      String recipientDeviceHash, String recipientSignedPrekey) throws Exception {
+        LocalKeys local = ensureLocalKeys(context);
+        String ownFull = local.deviceHash;
+        String recipientFull = recipientDeviceHash.toLowerCase(java.util.Locale.ROOT);
+        byte[] shared = sharedSecret(SessionStore.cryptoGet(context, "signed_prekey_private"), recipientSignedPrekey);
+        byte[] key = deriveMessageKey(shared, conversationId, ownFull, recipientFull);
+        byte[] nonce = new byte[12];
+        new java.security.SecureRandom().nextBytes(nonce);
+        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, "AES"), new GCMParameterSpec(128, nonce));
+        cipher.updateAAD(fileAad(conversationId, ownFull, recipientFull));
+        return concat(nonce, cipher.doFinal(plaintext));
+    }
+
+    public static byte[] decryptFile(Context context, String conversationId, byte[] encrypted,
+                                     String peerDeviceHash, String peerSignedPrekey) throws Exception {
+        if (encrypted == null || encrypted.length < 28) throw new IllegalArgumentException("Invalid encrypted attachment");
+        LocalKeys local = ensureLocalKeys(context);
+        String ownFull = local.deviceHash;
+        String peerFull = peerDeviceHash.toLowerCase(java.util.Locale.ROOT);
+        byte[] nonce = java.util.Arrays.copyOfRange(encrypted, 0, 12);
+        byte[] ciphertext = java.util.Arrays.copyOfRange(encrypted, 12, encrypted.length);
+        byte[] shared = sharedSecret(SessionStore.cryptoGet(context, "signed_prekey_private"), peerSignedPrekey);
+        byte[] key = deriveMessageKey(shared, conversationId, ownFull, peerFull);
+        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(key, "AES"), new GCMParameterSpec(128, nonce));
+        cipher.updateAAD(fileAad(conversationId, ownFull, peerFull));
+        return cipher.doFinal(ciphertext);
+    }
+
+    private static byte[] fileAad(String conversationId, String a, String b) {
+        String first = a.compareTo(b) <= 0 ? a : b;
+        String second = a.compareTo(b) <= 0 ? b : a;
+        return ("Pluschat-file|" + VERSION + "|" + conversationId + "|" + first + "|" + second).getBytes(StandardCharsets.UTF_8);
+    }
+
     public static boolean verifyPeerKey(String identityPublicKey, String signedPrekey, String signature) {
         try {
             byte[] identityRaw = unb64(identityPublicKey);
