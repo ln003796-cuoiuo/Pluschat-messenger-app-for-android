@@ -340,7 +340,7 @@ public class MainActivity extends Activity {
     private void twoFactorScreen() {
         title("Дополнительная защита"); subtitle("Введи одноразовый код второго фактора.");
         EditText code=input("Код 2FA",false); body.addView(code);
-        body.addView(button("Подтвердить и войти",()->request("POST","auth/2fa/verify",ApiClient.json("challenge_id",pending2fa,"code",value(code)),false,(data,error)->{if(saveSession(data))showPage("home");})));
+        body.addView(button("Подтвердить и войти",()->request("POST","auth/2fa/verify",ApiClient.json("challenge_id",pending2fa,"code",value(code)),false,(data,error)->{if(saveSession(data))registerCryptoKeys(() -> showPage("home"));})));
     }
     private boolean saveSession(JSONObject data) {
         String access=data.optString("access_token", data.optString("token","")), refresh=data.optString("refresh_token","");
@@ -736,7 +736,7 @@ public class MainActivity extends Activity {
             if (error != null) { message(error); return; }
             try {
                 JSONObject peerKey = keys.optJSONObject(0);
-                if (peerKey == null || !CryptoManager.verifyPeerKey(peerKey.optString("identity_public_key"), peerKey.optString("signed_prekey"), peerKey.optString("signed_prekey_signature"))) {
+                if (peerKey == null || !CryptoManager.verifyAndPinPeerKey(this, currentPeerId, peerKey)) {
                     message("Подпись ключа собеседника не прошла проверку.");
                     return;
                 }
