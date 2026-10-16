@@ -856,7 +856,7 @@ public class MainActivity extends Activity {
             if(query.trim().length()<2){results.addView(text("Введите минимум 2 символа для поиска.",14,false,muted));return;}
             request("GET","search?q="+android.net.Uri.encode(query.trim()),null,true,(data,error)->{
                 JSONArray arr=data.optJSONArray("users");if(arr==null)arr=data.optJSONArray("data");
-                if(arr==null||arr.length()==0){results.addView(text("Пользователи не найдены или API ещё не подключён.",14,false,muted));return;}
+                if(arr==null||arr.length()==0){results.addView(text("Пользователи не найдены. Проверь запрос или попробуй username.",14,false,muted));return;}
                 for(int i=0;i<arr.length();i++){JSONObject u=arr.optJSONObject(i);if(u==null)continue;
                     String uid=u.optString("id"), name=u.optString("first_name","")+" "+u.optString("last_name",""), uname=u.optString("username","");
                     results.addView(button(name+"  @"+uname,()->request("POST","conversations",ApiClient.json("user_id",uid),true,(chatData,apiError)->{currentChatId=chatData.optString("conversation_id",chatData.optString("id",chatData.optString("chat_id","")));currentChatTitle=name;currentPeerId=uid;showPage("chat");})));
