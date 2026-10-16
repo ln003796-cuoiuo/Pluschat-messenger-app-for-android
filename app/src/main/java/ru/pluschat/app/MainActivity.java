@@ -94,7 +94,7 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(lightMode ? Color.WHITE : 0xff0b0d12);
         getWindow().setNavigationBarColor(lightMode ? Color.WHITE : 0xff0b0d12);
         if (android.os.Build.VERSION.SDK_INT >= 23) getWindow().getDecorView().setSystemUiVisibility(lightMode ? View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR : 0);
-        boolean authFlow = target.equals("welcome") || target.equals("auth") || target.equals("register") || target.equals("twofa");
+        boolean authFlow = target.equals("welcome") || target.equals("auth") || target.equals("register") || target.equals("verify_email") || target.equals("twofa");
         boolean conversation = target.equals("chat");
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
@@ -124,7 +124,7 @@ public class MainActivity extends Activity {
         else root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
 
         boolean signedIn = !SessionStore.token(this).isEmpty()
-                && !target.equals("auth") && !target.equals("register")
+                && !target.equals("auth") && !target.equals("register") && !target.equals("verify_email")
                 && !target.equals("twofa");
         if (signedIn && !conversation) {
             LinearLayout nav = new LinearLayout(this);
