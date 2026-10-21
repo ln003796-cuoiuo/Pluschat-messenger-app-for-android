@@ -139,6 +139,8 @@ public final class ApiClient {
                 try (OutputStream os = connection.getOutputStream()) {
                     os.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"encrypted\"\r\n\r\n1\r\n").getBytes(StandardCharsets.UTF_8));
                     os.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"encryption_version\"\r\n\r\npc-e2ee-v1\r\n").getBytes(StandardCharsets.UTF_8));
+                    os.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"media_kind\"\r\n\r\n" + mediaKind + "\r\n").getBytes(StandardCharsets.UTF_8));
+                    if ("voice".equals(mediaKind) && durationMs > 0) os.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"duration_ms\"\r\n\r\n" + durationMs + "\r\n").getBytes(StandardCharsets.UTF_8));
                     os.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"encrypted.bin\"\r\nContent-Type: application/octet-stream\r\n\r\n").getBytes(StandardCharsets.UTF_8));
                     os.write(encryptedBytes);
                     os.write(("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
