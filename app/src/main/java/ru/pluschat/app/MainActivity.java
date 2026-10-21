@@ -814,9 +814,10 @@ public class MainActivity extends Activity {
                     if (attachmentMeta != null) {
                         long bytes = attachmentMeta.optLong("byte_size", 0);
                         boolean voiceNote = attachmentMeta.optString("mime_type", "").startsWith("audio/");
-                        contentText = (voiceNote ? "🎙 Голосовое сообщение" : "📎 " + attachmentMeta.optString("name", "Зашифрованный файл"))
+                        boolean gifMedia = "image/gif".equals(attachmentMeta.optString("mime_type", ""));
+                        contentText = (voiceNote ? "🎙 Голосовое сообщение" : (gifMedia ? "🎞 GIF-анимация" : "📎 " + attachmentMeta.optString("name", "Зашифрованный файл")))
                                 + "\n" + (bytes >= 1024 * 1024 ? String.format(java.util.Locale.ROOT, "%.1f МБ", bytes / 1048576.0)
-                                : Math.max(1, bytes / 1024) + " КБ") + (voiceNote ? "\nНажми, чтобы прослушать" : "\nНажми, чтобы скачать и расшифровать");
+                                : Math.max(1, bytes / 1024) + " КБ") + (voiceNote ? "\nНажми, чтобы прослушать" : (gifMedia ? "\nНажми, чтобы открыть анимацию" : "\nНажми, чтобы скачать и расшифровать"));
                     }
                     TextView content=text(contentText,15,false,white);
                     content.setMaxWidth((int)(getResources().getDisplayMetrics().widthPixels * 0.72f));
