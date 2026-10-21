@@ -708,6 +708,10 @@ public class MainActivity extends Activity {
         voice.setGravity(Gravity.CENTER);
         composer.addView(voice, new LinearLayout.LayoutParams(dp(38), dp(48)));
         voice.setOnClickListener(v -> toggleVoiceRecording(voice));
+        TextView emoji = text("☺", 21, true, 0xffb9adff);
+        emoji.setGravity(Gravity.CENTER);
+        composer.addView(emoji, new LinearLayout.LayoutParams(dp(34), dp(48)));
+        emoji.setOnClickListener(v -> showEmojiPicker());
         messageField = input("Сообщение…", false);
         messageField.setSingleLine(true);
         messageField.setBackground(shape(0xff171b24, 22));
@@ -1472,6 +1476,18 @@ public class MainActivity extends Activity {
                 message("Не удалось расшифровать файл. Проверь ключи и целостность вложения.");
             }
         });
+    }
+
+    private void showEmojiPicker() {
+        final String[] emojis = {"😀","😂","🥹","😍","😘","😎","😭","😡","🤔","👍","👎","👏","🙏","❤️","💜","🔥","🎉","✨","💯","🤝","👀","💋","🐱","🐶","🌹","☀️","🌙","🎵","🚀","💎"};
+        new android.app.AlertDialog.Builder(this).setTitle("Эмодзи")
+                .setItems(emojis, (dialog, which) -> {
+                    if (messageField != null) {
+                        int start = Math.max(messageField.getSelectionStart(), 0);
+                        int end = Math.max(messageField.getSelectionEnd(), 0);
+                        messageField.getText().replace(Math.min(start, end), Math.max(start, end), emojis[which]);
+                    }
+                }).setNegativeButton("Закрыть", null).show();
     }
 
     private void toggleVoiceRecording(TextView button) {
