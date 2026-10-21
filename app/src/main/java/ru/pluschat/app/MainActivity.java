@@ -25,6 +25,8 @@ public class MainActivity extends Activity {
     private boolean lightMode = false;
     private android.net.Uri selectedAvatar;
     private byte[] pendingDecryptedFile;
+    private VoiceRecorder voiceRecorder;
+    private boolean recordingVoice = false;
     private String pendingDecryptedName = "download.bin";
     private String pendingDecryptedMime = "application/octet-stream";
     private final Handler chatHandler = new Handler(Looper.getMainLooper());
@@ -702,6 +704,10 @@ public class MainActivity extends Activity {
         attach.setGravity(Gravity.CENTER);
         composer.addView(attach, new LinearLayout.LayoutParams(dp(42), dp(48)));
         attach.setOnClickListener(v -> pickAttachment());
+        TextView voice = text("🎙", 18, true, 0xffb9adff);
+        voice.setGravity(Gravity.CENTER);
+        composer.addView(voice, new LinearLayout.LayoutParams(dp(38), dp(48)));
+        voice.setOnClickListener(v -> toggleVoiceRecording(voice));
         messageField = input("Сообщение…", false);
         messageField.setSingleLine(true);
         messageField.setBackground(shape(0xff171b24, 22));
@@ -1325,12 +1331,7 @@ public class MainActivity extends Activity {
     }
 
     private void sendEncryptedAttachment(android.net.Uri uri) {
-        if (currentChatId.isEmpty() || currentPeerId.isEmpty()) {
-            message("Сначала открой личную переписку.");
-            return;
-        }
-        final String conversationId = currentChatId;
-        final String peerId = currentPeerId;
+        if (currentChatId.isEmpty() || currentPeerId.isEmpty()) { message("Сначала открой личную переписку."); return; }
         final String originalName = displayName(uri);
         String mime = getContentResolver().getType(uri);
         final String originalMime = mime == null ? "application/octet-stream" : mime;
@@ -1342,6 +1343,16 @@ public class MainActivity extends Activity {
             message("Файл не удалось прочитать. Максимальный размер — 25 МБ.");
             return;
         }
+        sendEncryptedAttachmentBytes(plaintext, originalName, originalMime);
+    }
+
+    private void sendEncryptedAttachmentBytes(byte[] plaintext, String originalName, String originalMime) {
+        if (currentChatId.isEmpty() || currentPeerId.isEmpty()) { message("Сначала открой личную переписку."); return; }
+        if (plaintext == null || plaintext.length == 0 || plaintext.length > 25 * 1024 * 1024) {
+            message("Размер вложения должен быть от 1 байта до 25 МБ."); return;
+        }
+        final String conversationId = currentChatId;
+        final String peerId = currentPeerId;
         registerCryptoKeys(() -> fetchPeerKeys(peerId, (keys, keyError) -> {
             if (keyError != null) { message(keyError); return; }
             try {
@@ -1434,6 +1445,59 @@ public class MainActivity extends Activity {
                 message("Не удалось расшифровать файл. Проверь ключи и целостность вложения.");
             }
         });
+    }
+
+    private void toggleVoiceRecording(TextView button) {
+        if (!recordingVoice) {
+            if (android.os.Build.VERSION.SDK_INT >= 23 && checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO}, 7201);
+                return;
+            }
+            try {
+                java.io.File file = new java.io.File(getCacheDir(), "pluschat-voice-" + System.currentTimeMillis() + ".m4a");
+                voiceRecorder = new VoiceRecorder();
+                voiceRecorder.start(this, file);
+                recordingVoice = true;
+                button.setText("■");
+                button.setTextColor(0xffff6b78);
+                message("Идёт запись. Нажми ■, чтобы отправить голосовое сообщение.");
+            } catch (Exception e) {
+                recordingVoice = false; voiceRecorder = null; button.setText("🎙");
+                message("Не удалось начать запись. Проверь разрешение микрофона.");
+            }
+            return;
+        }
+        try {
+            java.io.File audio = voiceRecorder.stop();
+            voiceRecorder = null; recordingVoice = false;
+            button.setText("🎙"); button.setTextColor(0xffb9adff);
+            if (audio == null || !audio.isFile() || audio.length() == 0 || audio.length() > 10 * 1024 * 1024) {
+                if (audio != null) audio.delete();
+                message("Голосовое сообщение пустое или превышает 10 МБ."); return;
+            }
+            byte[] bytes;
+            try (java.io.FileInputStream in = new java.io.FileInputStream(audio);
+                 java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
+                byte[] buffer = new byte[8192]; int n;
+                while ((n = in.read(buffer)) != -1) out.write(buffer, 0, n);
+                bytes = out.toByteArray();
+            } finally { audio.delete(); }
+            sendEncryptedAttachmentBytes(bytes, "voice-message.m4a", "audio/mp4");
+        } catch (Exception e) {
+            if (voiceRecorder != null) voiceRecorder.cancel();
+            voiceRecorder = null; recordingVoice = false;
+            button.setText("🎙"); button.setTextColor(0xffb9adff);
+            message("Не удалось завершить запись голосового сообщения.");
+        }
+    }
+
+    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 7201) {
+            if (grantResults.length > 0 && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                message("Разрешение получено. Нажми 🎙 ещё раз, чтобы начать запись.");
+            } else message("Для записи голосовых сообщений нужно разрешить доступ к микрофону.");
+        }
     }
 
     private void openCommunity(boolean channel) { android.content.Intent intent = new android.content.Intent(this, CommunityActivity.class); intent.putExtra("channel", channel); startActivity(intent); }
