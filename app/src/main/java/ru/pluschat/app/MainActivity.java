@@ -813,10 +813,14 @@ public class MainActivity extends Activity {
                     content.setMaxWidth((int)(getResources().getDisplayMetrics().widthPixels * 0.72f));
                     if (attachmentMeta != null && attachmentPeerKey != null) {
                         final String downloadConversationId = currentChatId;
-                        content.setOnClickListener(v -> downloadEncryptedAttachment(downloadConversationId,
-                                attachmentMeta.optString("attachment_id"), attachmentMeta.optString("name", "download.bin"),
-                                attachmentMeta.optString("mime_type", "application/octet-stream"),
-                                attachmentPeerKey.optString("key_id"), attachmentPeerKey.optString("signed_prekey")));
+                        if (attachmentMeta.optString("mime_type", "").startsWith("audio/")) {
+                            content.setOnClickListener(v -> playEncryptedVoiceAttachment(downloadConversationId, attachmentMeta.optString("attachment_id"), attachmentPeerKey.optString("key_id"), attachmentPeerKey.optString("signed_prekey")));
+                        } else {
+                            content.setOnClickListener(v -> downloadEncryptedAttachment(downloadConversationId,
+                                    attachmentMeta.optString("attachment_id"), attachmentMeta.optString("name", "download.bin"),
+                                    attachmentMeta.optString("mime_type", "application/octet-stream"),
+                                    attachmentPeerKey.optString("key_id"), attachmentPeerKey.optString("signed_prekey")));
+                        }
                     }
                     bubble.addView(sender);
                     bubble.addView(content);
@@ -1425,6 +1429,28 @@ public class MainActivity extends Activity {
             }
         }
         return null;
+    }
+
+    private void playEncryptedVoiceAttachment(String conversationId, String attachmentId, String peerDeviceHash, String peerSignedPrekey) {
+        ApiClient.downloadBytes("attachments/" + android.net.Uri.encode(attachmentId), SessionStore.token(this), (encrypted, error) -> {
+            if (error != null || encrypted == null) { message(error == null ? "Не удалось скачать голосовое сообщение." : error); return; }
+            java.io.File audio = null;
+            try {
+                byte[] plaintext = CryptoManager.decryptFile(this, conversationId, encrypted, peerDeviceHash, peerSignedPrekey);
+                audio = new java.io.File(getCacheDir(), "pluschat-play-" + System.currentTimeMillis() + ".m4a");
+                try (java.io.FileOutputStream out = new java.io.FileOutputStream(audio)) { out.write(plaintext); }
+                final java.io.File tempAudio = audio;
+                android.media.MediaPlayer player = new android.media.MediaPlayer();
+                player.setDataSource(tempAudio.getAbsolutePath());
+                player.setOnCompletionListener(mp -> { mp.release(); tempAudio.delete(); });
+                player.setOnErrorListener((mp, what, extra) -> { mp.release(); tempAudio.delete(); message("Не удалось воспроизвести аудио."); return true; });
+                player.setOnPreparedListener(mp -> mp.start());
+                player.prepareAsync();
+            } catch (Exception e) {
+                if (audio != null) audio.delete();
+                message("Не удалось расшифровать или воспроизвести голосовое сообщение.");
+            }
+        });
     }
 
     private void downloadEncryptedAttachment(String conversationId, String attachmentId, String name, String mime,
