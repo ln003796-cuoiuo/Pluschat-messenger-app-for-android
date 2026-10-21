@@ -712,6 +712,10 @@ public class MainActivity extends Activity {
         emoji.setGravity(Gravity.CENTER);
         composer.addView(emoji, new LinearLayout.LayoutParams(dp(34), dp(48)));
         emoji.setOnClickListener(v -> showEmojiPicker());
+        TextView gif = text("GIF", 12, true, 0xffb9adff);
+        gif.setGravity(Gravity.CENTER);
+        composer.addView(gif, new LinearLayout.LayoutParams(dp(36), dp(48)));
+        gif.setOnClickListener(v -> showGifPicker());
         messageField = input("Сообщение…", false);
         messageField.setSingleLine(true);
         messageField.setBackground(shape(0xff171b24, 22));
@@ -1476,6 +1480,59 @@ public class MainActivity extends Activity {
                 message("Не удалось расшифровать файл. Проверь ключи и целостность вложения.");
             }
         });
+    }
+
+    private void showGifPicker() {
+        EditText query = new EditText(this);
+        query.setSingleLine(true);
+        query.setHint("Например: кот, hello, celebration");
+        new android.app.AlertDialog.Builder(this).setTitle("Поиск GIF · GIPHY").setView(query)
+                .setNegativeButton("Отмена", null).setPositiveButton("Найти", (dialog, which) -> {
+                    String q = query.getText().toString().trim();
+                    if (q.isEmpty()) { message("Введи запрос для поиска GIF."); return; }
+                    request("GET", "gifs/search?q=" + android.net.Uri.encode(q) + "&limit=12", null, true, (data, error) -> {
+                        if (error != null) { message("Поиск GIF недоступен. Проверь GIPHY API-ключ в конфигурации сервера."); return; }
+                        org.json.JSONArray items = data.optJSONArray("data");
+                        if (items == null || items.length() == 0) { message("GIF по этому запросу не найдены."); return; }
+                        java.util.ArrayList<JSONObject> gifs = new java.util.ArrayList<>();
+                        java.util.ArrayList<String> labels = new java.util.ArrayList<>();
+                        for (int i = 0; i < items.length(); i++) {
+                            JSONObject item = items.optJSONObject(i); if (item == null) continue;
+                            gifs.add(item); String title = item.optString("title", "GIF");
+                            labels.add(title.isEmpty() ? "GIF " + (i + 1) : title);
+                        }
+                        new android.app.AlertDialog.Builder(this).setTitle("Выбери GIF")
+                                .setItems(labels.toArray(new String[0]), (d, index) -> {
+                                    JSONObject selected = gifs.get(index);
+                                    downloadAndSendGif(selected.optString("url"), selected.optString("id", "gif"));
+                                }).setNegativeButton("Закрыть", null).show();
+                    });
+                }).show();
+    }
+
+    private void downloadAndSendGif(String url, String id) {
+        if (url == null || !url.startsWith("https://")) { message("Некорректная ссылка GIF."); return; }
+        new Thread(() -> {
+            java.net.HttpURLConnection connection = null;
+            try {
+                java.net.URL parsed = new java.net.URL(url);
+                String host = parsed.getHost().toLowerCase(java.util.Locale.ROOT);
+                if (!(host.equals("giphy.com") || host.endsWith(".giphy.com"))) throw new java.io.IOException("Untrusted GIF host");
+                connection = (java.net.HttpURLConnection) parsed.openConnection();
+                connection.setConnectTimeout(5000); connection.setReadTimeout(10000); connection.setInstanceFollowRedirects(false);
+                int status = connection.getResponseCode();
+                if (status < 200 || status >= 300) throw new java.io.IOException("GIF download failed");
+                int length = connection.getContentLength();
+                if (length > 10 * 1024 * 1024) throw new java.io.IOException("GIF too large");
+                try (java.io.InputStream in = connection.getInputStream(); java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
+                    byte[] buffer = new byte[8192]; int n;
+                    while ((n = in.read(buffer)) != -1) { if (out.size() + n > 10 * 1024 * 1024) throw new java.io.IOException("GIF too large"); out.write(buffer, 0, n); }
+                    byte[] bytes = out.toByteArray();
+                    runOnUiThread(() -> sendEncryptedAttachmentBytes(bytes, "giphy-" + id + ".gif", "image/gif"));
+                }
+            } catch (Exception e) { runOnUiThread(() -> message("Не удалось загрузить GIF. Попробуй другой результат.")); }
+            finally { if (connection != null) connection.disconnect(); }
+        }).start();
     }
 
     private void showEmojiPicker() {
