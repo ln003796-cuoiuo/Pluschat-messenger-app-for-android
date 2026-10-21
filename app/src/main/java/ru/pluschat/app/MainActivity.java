@@ -824,6 +824,8 @@ public class MainActivity extends Activity {
                         final String downloadConversationId = currentChatId;
                         if (attachmentMeta.optString("mime_type", "").startsWith("audio/")) {
                             content.setOnClickListener(v -> playEncryptedVoiceAttachment(downloadConversationId, attachmentMeta.optString("attachment_id"), attachmentPeerKey.optString("key_id"), attachmentPeerKey.optString("signed_prekey")));
+                        } else if ("image/gif".equals(attachmentMeta.optString("mime_type", ""))) {
+                            content.setOnClickListener(v -> showEncryptedGifAttachment(downloadConversationId, attachmentMeta.optString("attachment_id"), attachmentPeerKey.optString("key_id"), attachmentPeerKey.optString("signed_prekey")));
                         } else {
                             content.setOnClickListener(v -> downloadEncryptedAttachment(downloadConversationId,
                                     attachmentMeta.optString("attachment_id"), attachmentMeta.optString("name", "download.bin"),
@@ -1438,6 +1440,35 @@ public class MainActivity extends Activity {
             }
         }
         return null;
+    }
+
+    private void showEncryptedGifAttachment(String conversationId, String attachmentId, String peerDeviceHash, String peerSignedPrekey) {
+        ApiClient.downloadBytes("attachments/" + android.net.Uri.encode(attachmentId), SessionStore.token(this), (encrypted, error) -> {
+            if (error != null || encrypted == null) { message(error == null ? "Не удалось скачать GIF." : error); return; }
+            try {
+                byte[] plaintext = CryptoManager.decryptFile(this, conversationId, encrypted, peerDeviceHash, peerSignedPrekey);
+                android.graphics.Movie movie = android.graphics.Movie.decodeByteArray(plaintext, 0, plaintext.length);
+                if (movie == null) { message("Этот GIF не удалось открыть."); return; }
+                GifAnimationView view = new GifAnimationView(this, movie);
+                new android.app.AlertDialog.Builder(this).setTitle("GIF").setView(view).setPositiveButton("Закрыть", null).show();
+            } catch (Exception e) { message("Не удалось расшифровать GIF."); }
+        });
+    }
+
+    private static final class GifAnimationView extends View {
+        private final android.graphics.Movie movie;
+        private final long startedAt = android.os.SystemClock.uptimeMillis();
+        GifAnimationView(Context context, android.graphics.Movie movie) { super(context); this.movie = movie; setBackgroundColor(0xff0f1219); }
+        @Override protected void onDraw(android.graphics.Canvas canvas) {
+            super.onDraw(canvas);
+            int duration = Math.max(1, movie.duration());
+            movie.setTime((int)((android.os.SystemClock.uptimeMillis() - startedAt) % duration));
+            float scale = Math.min((float)getWidth() / Math.max(1, movie.width()), (float)getHeight() / Math.max(1, movie.height()));
+            float x = (getWidth() - movie.width() * scale) / 2f;
+            float y = (getHeight() - movie.height() * scale) / 2f;
+            canvas.save(); canvas.translate(x, y); canvas.scale(scale, scale); movie.draw(canvas, 0, 0); canvas.restore();
+            postInvalidateDelayed(16);
+        }
     }
 
     private void playEncryptedVoiceAttachment(String conversationId, String attachmentId, String peerDeviceHash, String peerSignedPrekey) {
