@@ -1429,20 +1429,21 @@ public class MainActivity extends Activity {
     private void playEncryptedVoice(String conversationId, String attachmentId, String peerDeviceHash, String peerSignedPrekey) {
         ApiClient.downloadBytes("attachments/" + android.net.Uri.encode(attachmentId), SessionStore.token(this), (encrypted, error) -> {
             if (error != null || encrypted == null) { message("Не удалось скачать голосовое сообщение."); return; }
-            java.io.File temp = null;
+            final java.io.File[] tempHolder = new java.io.File[1];
             try {
                 byte[] plain = CryptoManager.decryptFile(this, conversationId, encrypted, peerDeviceHash, peerSignedPrekey);
-                temp = java.io.File.createTempFile("pluschat-play-", ".m4a", getCacheDir());
-                try (java.io.FileOutputStream out = new java.io.FileOutputStream(temp)) { out.write(plain); }
+                final java.io.File playbackFile = java.io.File.createTempFile("pluschat-play-", ".m4a", getCacheDir());
+                tempHolder[0] = playbackFile;
+                try (java.io.FileOutputStream out = new java.io.FileOutputStream(playbackFile)) { out.write(plain); }
                 android.media.MediaPlayer player = new android.media.MediaPlayer();
-                player.setDataSource(temp.getAbsolutePath());
-                player.setOnCompletionListener(mp -> { mp.release(); tempFileCleanup(temp); });
-                player.setOnErrorListener((mp, what, extra) -> { mp.release(); tempFileCleanup(temp); message("Не удалось воспроизвести аудио."); return true; });
+                player.setDataSource(playbackFile.getAbsolutePath());
+                player.setOnCompletionListener(mp -> { mp.release(); tempFileCleanup(playbackFile); });
+                player.setOnErrorListener((mp, what, extra) -> { mp.release(); tempFileCleanup(playbackFile); message("Не удалось воспроизвести аудио."); return true; });
                 player.prepare();
                 player.start();
                 message("Воспроизведение голосового сообщения.");
             } catch (Exception e) {
-                if (temp != null) temp.delete();
+                if (tempHolder[0] != null) tempHolder[0].delete();
                 message("Не удалось расшифровать или воспроизвести голосовое сообщение.");
             }
         });
