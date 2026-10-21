@@ -827,8 +827,7 @@ public class MainActivity extends Activity {
                     }
                     TextView content=text(contentText,15,false,white);
                     content.setMaxWidth((int)(getResources().getDisplayMetrics().widthPixels * 0.72f));
-                    if (selectedGif != null && selectedGif.optString("url").startsWith("https://")
-                            && selectedGif.optString("url").contains(".giphy.com/")) {
+                    if (selectedGif != null && isGiphyUrl(selectedGif.optString("url"))) {
                         android.webkit.WebView gifView = new android.webkit.WebView(this);
                         gifView.getSettings().setJavaScriptEnabled(false);
                         gifView.getSettings().setAllowFileAccess(false);
@@ -1334,6 +1333,15 @@ public class MainActivity extends Activity {
 
 
 
+    private boolean isGiphyUrl(String value) {
+        try {
+            android.net.Uri uri = android.net.Uri.parse(value);
+            String host = uri.getHost();
+            return "https".equalsIgnoreCase(uri.getScheme()) && host != null
+                    && (host.equalsIgnoreCase("giphy.com") || host.toLowerCase(java.util.Locale.ROOT).endsWith(".giphy.com"));
+        } catch (Exception ignored) { return false; }
+    }
+
     private void showStickerPicker() {
         String[] stickers = {"😀","😂","🥹","😍","🥳","😎","🤔","😭","❤️","🔥","👍","👎","🎉","💯","🤝","🫶","🐱","🐶","🌸","✨"};
         new android.app.AlertDialog.Builder(this)
@@ -1344,6 +1352,10 @@ public class MainActivity extends Activity {
                     sendEncryptedMessage(stickers[which], history);
                 })
                 .setNeutralButton("Поиск GIF", (dialog, which) -> showGifSearch())
+                .setPositiveButton("3D-иконки Thiings", (dialog, which) -> {
+                    try { startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.thiings.co/things"))); }
+                    catch (Exception e) { message("Не удалось открыть коллекцию Thiings."); }
+                })
                 .show();
     }
 
@@ -1364,7 +1376,7 @@ public class MainActivity extends Activity {
                         ArrayList<String> labels = new ArrayList<>();
                         for (int i = 0; i < items.length(); i++) {
                             JSONObject item = items.optJSONObject(i);
-                            if (item == null || !item.optString("url").startsWith("https://") || !item.optString("url").contains(".giphy.com/")) continue;
+                            if (item == null || !isGiphyUrl(item.optString("url"))) continue;
                             results.add(item);
                             String title = item.optString("title", "GIF").trim();
                             labels.add(title.isEmpty() ? "GIF " + (i + 1) : title);
