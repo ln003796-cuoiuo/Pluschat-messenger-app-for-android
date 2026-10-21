@@ -713,6 +713,10 @@ public class MainActivity extends Activity {
             if (recordingVoice) stopVoiceRecording();
             else startVoiceRecording(voice);
         });
+        TextView stickers = text("☺", 23, true, 0xffb9adff);
+        stickers.setGravity(Gravity.CENTER);
+        composer.addView(stickers, new LinearLayout.LayoutParams(dp(38), dp(48)));
+        stickers.setOnClickListener(v -> showStickerPicker());
         messageField = input("Сообщение…", false);
         messageField.setSingleLine(true);
         messageField.setBackground(shape(0xff171b24, 22));
@@ -795,12 +799,15 @@ public class MainActivity extends Activity {
                         displayedBody = "🔒 Не удалось расшифровать это сообщение на этом устройстве.";
                     }
                     JSONObject fileMetadata = null;
+                    JSONObject gifMetadata = null;
                     try {
                         JSONObject candidate = new JSONObject(displayedBody);
                         if ("file".equals(candidate.optString("type")) || "voice".equals(candidate.optString("type"))) fileMetadata = candidate;
+                        else if ("gif".equals(candidate.optString("type"))) gifMetadata = candidate;
                         else if ("attachment_pending".equals(candidate.optString("type"))) displayedBody = "📎 Вложение отправляется…";
                     } catch (Exception ignored) {}
                     final JSONObject attachmentMeta = fileMetadata;
+                    final JSONObject selectedGif = gifMetadata;
                     final JSONObject attachmentPeerKey = remoteKeyForMessage;
                     LinearLayout bubble=new LinearLayout(this);
                     bubble.setOrientation(LinearLayout.VERTICAL);
@@ -816,6 +823,22 @@ public class MainActivity extends Activity {
                     }
                     TextView content=text(contentText,15,false,white);
                     content.setMaxWidth((int)(getResources().getDisplayMetrics().widthPixels * 0.72f));
+                    if (selectedGif != null && selectedGif.optString("url").startsWith("https://")
+                            && selectedGif.optString("url").contains(".giphy.com/")) {
+                        android.webkit.WebView gifView = new android.webkit.WebView(this);
+                        gifView.getSettings().setJavaScriptEnabled(false);
+                        gifView.getSettings().setAllowFileAccess(false);
+                        gifView.getSettings().setAllowContentAccess(false);
+                        gifView.setBackgroundColor(Color.TRANSPARENT);
+                        gifView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+                        String gifUrl = selectedGif.optString("url").replace("&", "&amp;").replace("\"", "&quot;");
+                        gifView.loadDataWithBaseURL("https://media.giphy.com/", "<html><body style='margin:0;background:transparent'><img style='max-width:100%;height:auto' src=\"" + gifUrl + "\"></body></html>", "text/html", "UTF-8", null);
+                        bubble.addView(sender);
+                        bubble.addView(gifView, new LinearLayout.LayoutParams(dp(220), dp(170)));
+                    } else {
+                        bubble.addView(sender);
+                        bubble.addView(content);
+                    }
                     if (attachmentMeta != null && attachmentPeerKey != null) {
                         final String downloadConversationId = currentChatId;
                         if ("voice".equals(attachmentMeta.optString("type"))) {
@@ -829,8 +852,6 @@ public class MainActivity extends Activity {
                                     attachmentPeerKey.optString("key_id"), attachmentPeerKey.optString("signed_prekey")));
                         }
                     }
-                    bubble.addView(sender);
-                    bubble.addView(content);
                     LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(-2,-2);
                     params.setMargins(0,dp(4),0,dp(4));
                     params.gravity=mine ? Gravity.RIGHT : Gravity.LEFT;
@@ -1307,6 +1328,58 @@ public class MainActivity extends Activity {
         }
     }
 
+
+
+    private void showStickerPicker() {
+        String[] stickers = {"😀","😂","🥹","😍","🥳","😎","🤔","😭","❤️","🔥","👍","👎","🎉","💯","🤝","🫶","🐱","🐶","🌸","✨"};
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Эмодзи и стикеры")
+                .setItems(stickers, (dialog, which) -> {
+                    LinearLayout history = historyView();
+                    if (history == null) { message("Открой чат перед отправкой."); return; }
+                    sendEncryptedMessage(stickers[which], history);
+                })
+                .setNeutralButton("Поиск GIF", (dialog, which) -> showGifSearch())
+                .show();
+    }
+
+    private void showGifSearch() {
+        EditText query = input("Что найти в GIF?", false);
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Поиск GIF через GIPHY")
+                .setView(query)
+                .setNegativeButton("Отмена", null)
+                .setPositiveButton("Найти", (dialog, which) -> {
+                    String q = value(query);
+                    if (q.isEmpty()) { message("Введи запрос для поиска GIF."); return; }
+                    request("GET", "gifs/search?q=" + android.net.Uri.encode(q) + "&limit=20", null, true, (data, error) -> {
+                        if (error != null) return;
+                        JSONArray items = data.optJSONArray("data");
+                        if (items == null || items.length() == 0) { message("GIF не найдены или GIPHY не настроен."); return; }
+                        ArrayList<JSONObject> results = new ArrayList<>();
+                        ArrayList<String> labels = new ArrayList<>();
+                        for (int i = 0; i < items.length(); i++) {
+                            JSONObject item = items.optJSONObject(i);
+                            if (item == null || !item.optString("url").startsWith("https://") || !item.optString("url").contains(".giphy.com/")) continue;
+                            results.add(item);
+                            String title = item.optString("title", "GIF").trim();
+                            labels.add(title.isEmpty() ? "GIF " + (i + 1) : title);
+                        }
+                        if (results.isEmpty()) { message("В ответе GIPHY нет доступных GIF."); return; }
+                        new android.app.AlertDialog.Builder(this).setTitle("Выбери GIF")
+                                .setItems(labels.toArray(new String[0]), (d, selected) -> {
+                                    JSONObject item = results.get(selected);
+                                    try {
+                                        JSONObject gif = ApiClient.json("type", "gif", "title", item.optString("title", "GIF"),
+                                                "url", item.optString("url"), "provider", "giphy");
+                                        LinearLayout history = historyView();
+                                        if (history == null) { message("Открой чат перед отправкой."); return; }
+                                        sendEncryptedMessage(gif.toString(), history);
+                                    } catch (Exception e) { message("Не удалось подготовить GIF."); }
+                                }).show();
+                    });
+                }).show();
+    }
 
     private void startVoiceRecording(TextView control) {
         if (android.os.Build.VERSION.SDK_INT >= 23 && checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
