@@ -239,7 +239,7 @@ public class MainActivity extends Activity {
         securityParams.topMargin = dp(2);
         securityParams.bottomMargin = dp(44);
         body.addView(security, securityParams);
-        body.addView(button("Создать аккаунт", () -> { registrationStage = "email"; showPage("register"); }));
+        body.addView(button("Создать аккаунт", () -> { showPage("register"); }));
         Button loginButton = button("У меня уже есть аккаунт", () -> showPage("auth"));
         loginButton.setBackground(shape(0xff1a2030, 16));
         loginButton.setTextColor(white);
@@ -263,7 +263,7 @@ public class MainActivity extends Activity {
         body.addView(button("Войти", this::login));
         TextView divider = text("или продолжить с", 12, false, muted); divider.setGravity(Gravity.CENTER); divider.setPadding(0, dp(16), 0, dp(8)); body.addView(divider);
         body.addView(text("После пароля потребуется одноразовый код двухэтапной защиты.", 12, false, muted));
-        TextView signup = text("Нет аккаунта?  Создать", 13, true, 0xffb7adff); signup.setGravity(Gravity.CENTER); signup.setPadding(0, dp(22), 0, dp(12)); signup.setOnClickListener(v -> { registrationStage = "email"; showPage("register"); }); body.addView(signup);
+        TextView signup = text("Нет аккаунта?  Создать", 13, true, 0xffb7adff); signup.setGravity(Gravity.CENTER); signup.setPadding(0, dp(22), 0, dp(12)); signup.setOnClickListener(v -> {  showPage("register"); }); body.addView(signup);
     }
     private void forgotPasswordScreen() {
         title("Восстановление пароля");
