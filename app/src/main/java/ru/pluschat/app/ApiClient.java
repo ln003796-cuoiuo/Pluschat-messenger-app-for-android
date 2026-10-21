@@ -117,6 +117,10 @@ public final class ApiClient {
     public interface ByteArrayCallback { void onResult(byte[] data, String error); }
 
     public static void uploadEncryptedFile(byte[] encryptedBytes, String path, String token, Callback callback) {
+        uploadEncryptedFile(encryptedBytes, path, token, "file", 0, callback);
+    }
+
+    public static void uploadEncryptedFile(byte[] encryptedBytes, String path, String token, String mediaKind, long durationMs, Callback callback) {
         IO.execute(() -> {
             HttpURLConnection connection = null;
             JSONObject response = new JSONObject();
