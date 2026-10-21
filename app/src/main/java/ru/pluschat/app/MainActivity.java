@@ -29,6 +29,10 @@ public class MainActivity extends Activity {
     private String pendingDecryptedMime = "application/octet-stream";
     private final Handler chatHandler = new Handler(Looper.getMainLooper());
     private Runnable chatPoll;
+    private android.media.MediaRecorder voiceRecorder;
+    private java.io.File voiceTempFile;
+    private long voiceStartedAt;
+    private boolean recordingVoice = false;
 
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -702,6 +706,13 @@ public class MainActivity extends Activity {
         attach.setGravity(Gravity.CENTER);
         composer.addView(attach, new LinearLayout.LayoutParams(dp(42), dp(48)));
         attach.setOnClickListener(v -> pickAttachment());
+        TextView voice = text("🎙", 20, true, 0xffb9adff);
+        voice.setGravity(Gravity.CENTER);
+        composer.addView(voice, new LinearLayout.LayoutParams(dp(42), dp(48)));
+        voice.setOnClickListener(v -> {
+            if (recordingVoice) stopVoiceRecording();
+            else startVoiceRecording(voice);
+        });
         messageField = input("Сообщение…", false);
         messageField.setSingleLine(true);
         messageField.setBackground(shape(0xff171b24, 22));
@@ -786,7 +797,7 @@ public class MainActivity extends Activity {
                     JSONObject fileMetadata = null;
                     try {
                         JSONObject candidate = new JSONObject(displayedBody);
-                        if ("file".equals(candidate.optString("type"))) fileMetadata = candidate;
+                        if ("file".equals(candidate.optString("type")) || "voice".equals(candidate.optString("type"))) fileMetadata = candidate;
                         else if ("attachment_pending".equals(candidate.optString("type"))) displayedBody = "📎 Вложение отправляется…";
                     } catch (Exception ignored) {}
                     final JSONObject attachmentMeta = fileMetadata;
@@ -807,10 +818,16 @@ public class MainActivity extends Activity {
                     content.setMaxWidth((int)(getResources().getDisplayMetrics().widthPixels * 0.72f));
                     if (attachmentMeta != null && attachmentPeerKey != null) {
                         final String downloadConversationId = currentChatId;
-                        content.setOnClickListener(v -> downloadEncryptedAttachment(downloadConversationId,
-                                attachmentMeta.optString("attachment_id"), attachmentMeta.optString("name", "download.bin"),
-                                attachmentMeta.optString("mime_type", "application/octet-stream"),
-                                attachmentPeerKey.optString("key_id"), attachmentPeerKey.optString("signed_prekey")));
+                        if ("voice".equals(attachmentMeta.optString("type"))) {
+                            content.setOnClickListener(v -> playEncryptedVoice(downloadConversationId,
+                                    attachmentMeta.optString("attachment_id"),
+                                    attachmentPeerKey.optString("key_id"), attachmentPeerKey.optString("signed_prekey")));
+                        } else {
+                            content.setOnClickListener(v -> downloadEncryptedAttachment(downloadConversationId,
+                                    attachmentMeta.optString("attachment_id"), attachmentMeta.optString("name", "download.bin"),
+                                    attachmentMeta.optString("mime_type", "application/octet-stream"),
+                                    attachmentPeerKey.optString("key_id"), attachmentPeerKey.optString("signed_prekey")));
+                        }
                     }
                     bubble.addView(sender);
                     bubble.addView(content);
@@ -1289,6 +1306,149 @@ public class MainActivity extends Activity {
             }
         }
     }
+
+
+    private void startVoiceRecording(TextView control) {
+        if (android.os.Build.VERSION.SDK_INT >= 23 && checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO}, 7201);
+            message("Разреши доступ к микрофону, затем нажми запись ещё раз.");
+            return;
+        }
+        try {
+            voiceTempFile = java.io.File.createTempFile("pluschat-voice-", ".m4a", getCacheDir());
+            voiceRecorder = android.os.Build.VERSION.SDK_INT >= 31 ? new android.media.MediaRecorder(this) : new android.media.MediaRecorder();
+            voiceRecorder.setAudioSource(android.media.MediaRecorder.AudioSource.MIC);
+            voiceRecorder.setOutputFormat(android.media.MediaRecorder.OutputFormat.MPEG_4);
+            voiceRecorder.setAudioEncoder(android.media.MediaRecorder.AudioEncoder.AAC);
+            voiceRecorder.setAudioSamplingRate(44100);
+            voiceRecorder.setAudioEncodingBitRate(96000);
+            voiceRecorder.setMaxDuration(60000);
+            voiceRecorder.setOutputFile(voiceTempFile.getAbsolutePath());
+            voiceRecorder.setOnInfoListener((recorder, what, extra) -> {
+                if (what == android.media.MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED) stopVoiceRecording();
+            });
+            voiceRecorder.prepare();
+            voiceRecorder.start();
+            voiceStartedAt = android.os.SystemClock.elapsedRealtime();
+            recordingVoice = true;
+            control.setText("■");
+            message("Запись идёт. Нажми ■ для отправки (максимум 60 секунд).");
+        } catch (Exception e) {
+            releaseVoiceRecorder();
+            message("Не удалось начать запись голосового сообщения.");
+        }
+    }
+
+    private void stopVoiceRecording() {
+        if (!recordingVoice || voiceRecorder == null || voiceTempFile == null) return;
+        long duration = Math.max(1, android.os.SystemClock.elapsedRealtime() - voiceStartedAt);
+        try {
+            voiceRecorder.stop();
+            voiceRecorder.reset();
+            voiceRecorder.release();
+            voiceRecorder = null;
+            recordingVoice = false;
+            byte[] bytes = java.nio.file.Files.readAllBytes(voiceTempFile.toPath());
+            if (bytes.length < 32) { message("Запись слишком короткая."); return; }
+            sendEncryptedVoice(bytes, duration);
+        } catch (Exception e) {
+            message("Запись не удалось завершить. Попробуй ещё раз.");
+        } finally {
+            recordingVoice = false;
+            releaseVoiceRecorder();
+            if (voiceTempFile != null) voiceTempFile.delete();
+            voiceTempFile = null;
+        }
+    }
+
+    private void releaseVoiceRecorder() {
+        if (voiceRecorder != null) {
+            try { voiceRecorder.reset(); } catch (Exception ignored) {}
+            try { voiceRecorder.release(); } catch (Exception ignored) {}
+            voiceRecorder = null;
+        }
+        recordingVoice = false;
+    }
+
+    private void sendEncryptedVoice(byte[] plaintext, long durationMs) {
+        if (currentChatId.isEmpty() || currentPeerId.isEmpty()) { message("Сначала открой личную переписку."); return; }
+        final String conversationId = currentChatId;
+        final String peerId = currentPeerId;
+        registerCryptoKeys(() -> fetchPeerKeys(peerId, (keys, keyError) -> {
+            if (keyError != null) { message(keyError); return; }
+            try {
+                JSONObject peerKey = keys.optJSONObject(0);
+                if (peerKey == null || !CryptoManager.verifyAndPinPeerKey(this, peerId, peerKey)) {
+                    message("Не удалось проверить ключ собеседника."); return;
+                }
+                byte[] encryptedFile = CryptoManager.encryptFile(this, conversationId, plaintext,
+                        peerKey.optString("key_id"), peerKey.optString("signed_prekey"));
+                JSONObject pending = ApiClient.json("type", "attachment_pending");
+                JSONObject envelope = CryptoManager.encrypt(this, conversationId, pending.toString(),
+                        peerKey.optString("key_id"), peerKey.optString("signed_prekey"));
+                JSONObject messagePayload = ApiClient.json("client_message_id", java.util.UUID.randomUUID().toString(),
+                        "type", "file", "body", envelope.toString());
+                ApiClient.request("POST", "conversations/" + conversationId + "/messages", messagePayload,
+                        SessionStore.token(this), (created, createError) -> {
+                    JSONObject savedMessage = created.optJSONObject("message");
+                    String messageId = savedMessage == null ? "" : savedMessage.optString("id", "");
+                    if (createError != null || !created.optBoolean("ok", false) || messageId.isEmpty()) {
+                        message("Не удалось создать зашифрованное голосовое сообщение."); return;
+                    }
+                    ApiClient.uploadEncryptedFile(encryptedFile, "messages/" + messageId + "/attachments",
+                            SessionStore.token(this), "voice", durationMs, (uploaded, uploadError) -> {
+                        JSONObject attachment = uploaded.optJSONObject("attachment");
+                        String attachmentId = attachment == null ? "" : attachment.optString("id", "");
+                        if (uploadError != null || !uploaded.optBoolean("ok", false) || attachmentId.isEmpty()) {
+                            message("Не удалось загрузить зашифрованное аудио."); return;
+                        }
+                        try {
+                            JSONObject metadata = ApiClient.json("type", "voice", "attachment_id", attachmentId,
+                                    "name", "voice.m4a", "mime_type", "audio/mp4", "byte_size", plaintext.length,
+                                    "duration_ms", durationMs);
+                            JSONObject finalEnvelope = CryptoManager.encrypt(this, conversationId, metadata.toString(),
+                                    peerKey.optString("key_id"), peerKey.optString("signed_prekey"));
+                            ApiClient.request("POST", "messages/" + messageId + "/edit",
+                                    ApiClient.json("body", finalEnvelope.toString()), SessionStore.token(this), (edited, editError) -> {
+                                if (editError != null || !edited.optBoolean("ok", false)) {
+                                    message("Аудио загружено, но карточку сообщения не удалось обновить."); return;
+                                }
+                                message("Голосовое сообщение отправлено и зашифровано.");
+                                if (conversationId.equals(currentChatId) && "chat".equals(page)) {
+                                    LinearLayout history = historyView();
+                                    if (history != null) refreshChatHistory(history);
+                                }
+                            });
+                        } catch (Exception e) { message("Не удалось подготовить карточку голосового сообщения."); }
+                    });
+                });
+            } catch (Exception e) { message("Не удалось зашифровать голосовое сообщение."); }
+        }));
+    }
+
+    private void playEncryptedVoice(String conversationId, String attachmentId, String peerDeviceHash, String peerSignedPrekey) {
+        ApiClient.downloadBytes("attachments/" + android.net.Uri.encode(attachmentId), SessionStore.token(this), (encrypted, error) -> {
+            if (error != null || encrypted == null) { message("Не удалось скачать голосовое сообщение."); return; }
+            java.io.File temp = null;
+            try {
+                byte[] plain = CryptoManager.decryptFile(this, conversationId, encrypted, peerDeviceHash, peerSignedPrekey);
+                temp = java.io.File.createTempFile("pluschat-play-", ".m4a", getCacheDir());
+                try (java.io.FileOutputStream out = new java.io.FileOutputStream(temp)) { out.write(plain); }
+                android.media.MediaPlayer player = new android.media.MediaPlayer();
+                player.setDataSource(temp.getAbsolutePath());
+                player.setOnCompletionListener(mp -> { mp.release(); tempFileCleanup(temp); });
+                player.setOnErrorListener((mp, what, extra) -> { mp.release(); tempFileCleanup(temp); message("Не удалось воспроизвести аудио."); return true; });
+                player.prepare();
+                player.start();
+                message("Воспроизведение голосового сообщения.");
+            } catch (Exception e) {
+                if (temp != null) temp.delete();
+                message("Не удалось расшифровать или воспроизвести голосовое сообщение.");
+            }
+        });
+    }
+
+    private void tempFileCleanup(java.io.File file) { if (file != null) file.delete(); }
 
     private void pickAttachment() {
         android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT);
