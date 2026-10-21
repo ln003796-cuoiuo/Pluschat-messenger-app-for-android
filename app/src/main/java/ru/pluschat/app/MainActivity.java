@@ -18,9 +18,9 @@ import java.util.ArrayList;
 public class MainActivity extends Activity {
     private final int bg = Color.rgb(11, 13, 18), panel = Color.rgb(19, 23, 32), white = Color.rgb(245, 247, 251), muted = Color.rgb(152, 162, 181), accent = Color.rgb(136, 117, 255);
     private LinearLayout root, body, chatList;
-    private String page = "auth", registrationStage = "email", phoneChallenge = "", emailChallenge = "", currentChatId = "", currentChatTitle = "", currentPeerId = "";
-    private EditText phoneField, phoneCodeField, codeField, emailField, emailCodeField, confirmPasswordField, firstNameField, lastNameField, usernameField, passwordField, bioField, birthField, educationField, identifierField, loginPasswordField, messageField, searchField;
-    private String registrationEmail = "", registrationPhone = "", registrationPassword = "";
+    private String page = "auth", emailChallenge = "", currentChatId = "", currentChatTitle = "", currentPeerId = "";
+    private EditText codeField, emailField, emailCodeField, confirmPasswordField, firstNameField, lastNameField, usernameField, passwordField, bioField, birthField, educationField, identifierField, loginPasswordField, messageField, searchField;
+    private String registrationEmail = "";
     private ArrayList<JSONObject> chats = new ArrayList<>();
     private boolean lightMode = false;
     private android.net.Uri selectedAvatar;
@@ -106,7 +106,7 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(lightMode ? Color.WHITE : 0xff0b0d12);
         getWindow().setNavigationBarColor(lightMode ? Color.WHITE : 0xff0b0d12);
         if (android.os.Build.VERSION.SDK_INT >= 23) getWindow().getDecorView().setSystemUiVisibility(lightMode ? View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR : 0);
-        boolean authFlow = target.equals("welcome") || target.equals("auth") || target.equals("register") || target.equals("verify_email") || target.equals("verify_phone") || target.equals("twofa") || target.equals("twofa_setup") || target.equals("forgot_password");
+        boolean authFlow = target.equals("welcome") || target.equals("auth") || target.equals("register") || target.equals("verify_email") || target.equals("twofa") || target.equals("twofa_setup") || target.equals("forgot_password");
         boolean conversation = target.equals("chat");
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
@@ -136,7 +136,7 @@ public class MainActivity extends Activity {
         else root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
 
         boolean signedIn = !SessionStore.token(this).isEmpty()
-                && !target.equals("auth") && !target.equals("register") && !target.equals("verify_email") && !target.equals("verify_phone")
+                && !target.equals("auth") && !target.equals("register") && !target.equals("verify_email")
                 && !target.equals("twofa") && !target.equals("twofa_setup") && !target.equals("forgot_password");
         if (signedIn && !conversation) {
             LinearLayout nav = new LinearLayout(this);
@@ -157,7 +157,7 @@ public class MainActivity extends Activity {
         else if (target.equals("devices")) devicesScreen();
         else if (target.equals("register")) registerScreen();
         else if (target.equals("verify_email")) verifyEmailScreen();
-        else if (target.equals("verify_phone")) verifyPhoneScreen();
+        else if (target.equals("complete_profile")) completeProfileScreen();
         else if (target.equals("home")) homeScreen();
         else if (target.equals("chat")) chatScreen();
         else if (target.equals("search")) searchScreen();
@@ -321,13 +321,9 @@ public class MainActivity extends Activity {
 
     private void registerScreen() {
         title("Создать аккаунт");
-        subtitle("Подтверди номер телефона по SMS и электронную почту.");
+        subtitle("Регистрация по электронной почте. SMS и номер телефона не требуются.");
         firstNameField = input("Имя *", false); body.addView(firstNameField);
         lastNameField = input("Фамилия (необязательно)", false); body.addView(lastNameField);
-        usernameField = input("Имя пользователя: латиница, цифры, _", false); body.addView(usernameField);
-        phoneField = input("Телефон в международном формате, например +491234567890", false);
-        phoneField.setInputType(android.text.InputType.TYPE_CLASS_PHONE);
-        body.addView(phoneField);
         emailField = input("Электронная почта", false);
         emailField.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
         body.addView(emailField);
@@ -342,60 +338,27 @@ public class MainActivity extends Activity {
         body.addView(terms);
         body.addView(button("Создать аккаунт", () -> {
             String email = value(emailField).toLowerCase(java.util.Locale.ROOT);
-            String phone = value(phoneField).replaceAll("[\\s().-]", "");
             String password = value(passwordField);
             String confirm = value(confirmPasswordField);
-            String username = value(usernameField).replaceFirst("^@", "");
             String firstName = value(firstNameField);
             String lastName = value(lastNameField);
             String birthDate = value(birthField);
-            if (!phone.matches("\\+[1-9][0-9]{7,14}")) { message("Введи номер в международном формате, начиная с + и кода страны."); phoneField.requestFocus(); return; }
             if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) { message("Введи корректный email."); return; }
             if (firstName.trim().isEmpty()) { message("Имя обязательно для регистрации."); firstNameField.requestFocus(); return; }
             if (password.length() < 10 || password.length() > 200) { message("Пароль должен содержать от 10 до 200 символов."); return; }
             if (!password.equals(confirm)) { message("Пароли не совпадают."); return; }
-            if (!username.matches("[A-Za-z0-9_]{3,32}")) { message("Username: 3–32 символа, латинские буквы, цифры и _."); return; }
             if (!birthDate.isEmpty() && !birthDate.matches("\\d{4}-\\d{2}-\\d{2}")) { message("Дата должна быть в формате YYYY-MM-DD."); return; }
             if (!terms.isChecked()) { message("Подтверди согласие с условиями сервиса."); return; }
-            JSONObject payload = ApiClient.json("email", email, "phone", phone, "password", password, "username", username,
+            JSONObject payload = ApiClient.json("email", email, "password", password,
                 "first_name", firstName, "last_name", lastName, "birth_date", birthDate);
             request("POST", "auth/register", payload, false, (data, error) -> {
                 if (error != null || !data.optBoolean("ok", false)) return;
                 registrationEmail = email;
-                registrationPhone = phone;
-                message(data.optString("message", "Код подтверждения отправлен по SMS."));
-                showPage("verify_phone");
-            });
-        }));
-        body.addView(button("Уже есть аккаунт — войти", () -> showPage("auth")));
-    }
-
-    private void verifyPhoneScreen() {
-        title("Подтверди номер");
-        subtitle("Введи шестизначный код из SMS, отправленного на номер " + registrationPhone + ".");
-        TextView phoneLabel = text(registrationPhone, 15, true, lightMode ? 0xff51458b : 0xffc7beff);
-        phoneLabel.setPadding(0, dp(6), 0, dp(12));
-        body.addView(phoneLabel);
-        phoneCodeField = input("Код из SMS · 6 цифр", false);
-        phoneCodeField.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
-        phoneCodeField.setLetterSpacing(0.25f);
-        phoneCodeField.setTextSize(22);
-        phoneCodeField.setGravity(Gravity.CENTER);
-        body.addView(phoneCodeField);
-        body.addView(button("Подтвердить номер", () -> {
-            String code = value(phoneCodeField).trim();
-            if (!code.matches("[0-9]{6}")) { message("Введи шестизначный код из SMS."); return; }
-            request("POST", "auth/phone/verify", ApiClient.json("phone", registrationPhone, "code", code), false, (data, error) -> {
-                if (error != null || !data.optBoolean("verified", false)) return;
-                message("Номер подтверждён. Теперь подтверди email.");
+                message(data.optString("message", "Код подтверждения отправлен по электронной почте."));
                 showPage("verify_email");
             });
         }));
-        body.addView(button("Отправить SMS повторно", () ->
-            request("POST", "auth/phone/resend", ApiClient.json("phone", registrationPhone), false, (data, error) -> {
-                if (error == null) message(data.optString("message", "Если номер ожидает подтверждения, SMS отправлено."));
-            })));
-        body.addView(button("Вернуться к регистрации", () -> showPage("register")));
+        body.addView(button("Уже есть аккаунт — войти", () -> showPage("auth")));
     }
 
     private void verifyEmailScreen() {
@@ -415,7 +378,7 @@ public class MainActivity extends Activity {
             if (!code.matches("[0-9]{6}")) { message("Введи шестизначный код из письма."); return; }
             request("POST", "auth/verify", ApiClient.json("email", registrationEmail, "code", code), false, (data, error) -> {
                 if (error != null || !data.optBoolean("verified", false)) return;
-                message("Почта и номер подтверждены. Теперь войди в аккаунт.");
+                message("Почта подтверждена. Теперь войди в аккаунт и заверши профиль.");
                 showPage("auth");
                 if (identifierField != null) identifierField.setText(registrationEmail);
             });
@@ -425,26 +388,62 @@ public class MainActivity extends Activity {
                 if (error == null) message(data.optString("message", "Если аккаунт ожидает подтверждения, письмо отправлено."));
             });
         }));
-        body.addView(button("Назад к подтверждению номера", () -> showPage("verify_phone")));
+        body.addView(button("Назад к регистрации", () -> showPage("register")));
     }
 
     private void login() {
         String id=value(identifierField), pw=value(loginPasswordField);
-        if(id.isEmpty()||pw.isEmpty()){message("Введи телефон/email и пароль.");return;}
+        if(id.isEmpty()||pw.isEmpty()){message("Введи email или никнейм и пароль.");return;}
         request("POST","auth/login",ApiClient.json("login",id,"password",pw,"device_key",SessionStore.deviceKey(this),"device_name",android.os.Build.MANUFACTURER+" "+android.os.Build.MODEL,"platform","android"),false,(data,error)->{
             if(data.optBoolean("requires_2fa",false)){ pending2fa=data.optString("challenge_id",""); showPage("twofa"); return; }
             if(data.optBoolean("requires_2fa_setup",false)) {
                 if(saveSession(data)) showPage("twofa_setup");
                 return;
             }
-            if(saveSession(data)) registerCryptoKeys(() -> showPage("home"));
+            if(saveSession(data)) continueAfterLogin(data);
         });
     }
     private String pending2fa="";
+
+    private void continueAfterLogin(JSONObject data) {
+        JSONObject user = data.optJSONObject("user");
+        if (user != null && !user.optBoolean("profile_completed", true)) {
+            showPage("complete_profile");
+            return;
+        }
+        registerCryptoKeys(() -> showPage("home"));
+    }
+
+    private void completeProfileScreen() {
+        title("Завершение профиля");
+        subtitle("Почта подтверждена. Имя и уникальный никнейм обязательны для продолжения.");
+        EditText firstName = input("Имя *", false);
+        EditText username = input("Никнейм · латиница, цифры и _", false);
+        EditText lastName = input("Фамилия (необязательно)", false);
+        EditText birth = input("Дата рождения · необязательно (ГГГГ-ММ-ДД)", false);
+        body.addView(firstName);
+        body.addView(username);
+        body.addView(lastName);
+        body.addView(birth);
+        body.addView(button("Сохранить и продолжить", () -> {
+            String nick = value(username).replaceFirst("^@", "");
+            String name = value(firstName);
+            String birthday = value(birth);
+            if (name.isEmpty()) { message("Имя обязательно."); return; }
+            if (!nick.matches("[A-Za-z0-9_]{3,32}")) { message("Никнейм должен содержать 3–32 латинских символа, цифры или _."); return; }
+            if (!birthday.isEmpty() && !birthday.matches("\\d{4}-\\d{2}-\\d{2}")) { message("Дата должна быть в формате YYYY-MM-DD."); return; }
+            request("POST", "auth/profile", ApiClient.json("username", nick, "first_name", name, "last_name", value(lastName), "birth_date", birthday), true, (result, error) -> {
+                if (error != null || !result.optBoolean("ok", false)) return;
+                registerCryptoKeys(() -> showPage("home"));
+            });
+        }));
+        body.addView(button("Выйти", this::logout));
+    }
+
     private void twoFactorScreen() {
         title("Дополнительная защита"); subtitle("Введи одноразовый код второго фактора.");
         EditText code=input("Код 2FA",false); body.addView(code);
-        body.addView(button("Подтвердить и войти",()->request("POST","auth/2fa/verify",ApiClient.json("challenge_id",pending2fa,"code",value(code)),false,(data,error)->{if(saveSession(data))registerCryptoKeys(() -> showPage("home"));})));
+        body.addView(button("Подтвердить и войти",()->request("POST","auth/2fa/verify",ApiClient.json("challenge_id",pending2fa,"code",value(code)),false,(data,error)->{if(saveSession(data))continueAfterLogin(data);})));
     }
     private boolean saveSession(JSONObject data) {
         String access=data.optString("access_token", data.optString("token","")), refresh=data.optString("refresh_token","");
@@ -475,7 +474,7 @@ public class MainActivity extends Activity {
                 registerCryptoKeys(() -> showPage("home"));
             });
         }));
-        body.addView(text("Двухэтапная аутентификация обязательна и не может быть отключена.", 12, false, muted));
+        body.addView(text("Двухэтапная аутентификация необязательна и включается по желанию.", 12, false, muted));
         body.addView(button("Назад",()->showPage("settings")));
     }
 
