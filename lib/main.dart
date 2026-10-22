@@ -445,7 +445,7 @@ class _MessengerShellState extends State<MessengerShell> {
     final pages = [
       ChatsPage(api: widget.api),
       SearchPage(api: widget.api),
-      FeaturePage(icon: Icons.notifications_none_rounded, title: 'Уведомления', subtitle: 'Уведомления и настройки по категориям подключаются к серверным данным.'),
+      NotificationsPage(api: widget.api),
       ProfilePage(api: widget.api, onLogout: widget.onLogout),
     ];
     return Scaffold(
@@ -453,6 +453,7 @@ class _MessengerShellState extends State<MessengerShell> {
         title: Text(_titles[_tab], style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w800, letterSpacing: -.5)),
         actions: [
           if (_tab == 0 || _tab == 1) IconButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => SearchPage(api: widget.api))), icon: const Icon(Icons.search_rounded), tooltip: 'Поиск людей'),
+          if (_tab == 0) IconButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => CommunitiesPage(api: widget.api))), icon: const Icon(Icons.groups_2_outlined), tooltip: 'Группы и каналы'),
           const SizedBox(width: 8),
         ],
       ),
@@ -862,4 +863,168 @@ class _SearchPageState extends State<SearchPage> {
       )),
     ]),
   );
+}
+
+
+class NotificationsPage extends StatefulWidget {
+  const NotificationsPage({super.key, required this.api});
+  final ApiClient api;
+  @override
+  State<NotificationsPage> createState() => _NotificationsPageState();
+}
+
+class _NotificationsPageState extends State<NotificationsPage> {
+  late Future<Map<String, dynamic>> _future;
+  @override
+  void initState() { super.initState(); _future = widget.api.notifications(); }
+  void _reload() => setState(() => _future = widget.api.notifications());
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<Map<String, dynamic>>(
+    future: _future,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+      if (snapshot.hasError) return Center(child: Padding(padding: const EdgeInsets.all(24), child: Text('Не удалось загрузить уведомления.\n${snapshot.error}', textAlign: TextAlign.center)));
+      final list = (snapshot.data?['notifications'] as List<dynamic>?) ?? [];
+      if (list.isEmpty) return const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.notifications_none_rounded, size: 54, color: _muted),
+        SizedBox(height: 12),
+        Text('Пока тихо', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: _ink)),
+        SizedBox(height: 6),
+        Text('Новые события появятся здесь.', style: TextStyle(color: _muted)),
+      ]));
+      return RefreshIndicator(onRefresh: () async => _reload(), child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Align(alignment: Alignment.centerRight, child: TextButton.icon(
+            onPressed: () async {
+              try { await widget.api.markAllNotificationsRead(); _reload(); }
+              catch (e) { if (context.mounted) _notice(context, e.toString()); }
+            },
+            icon: const Icon(Icons.done_all_rounded), label: const Text('Прочитать все'),
+          )),
+          ...list.map((raw) {
+            final item = Map<String, dynamic>.from(raw as Map);
+            final id = item['id']?.toString() ?? '';
+            final isRead = item['read_at'] != null;
+            final title = item['title']?.toString() ?? item['type']?.toString() ?? 'Уведомление';
+            final body = item['body']?.toString() ?? item['message']?.toString() ?? '';
+            return Card(
+              elevation: 0, color: Colors.white, margin: const EdgeInsets.only(bottom: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: ListTile(
+                leading: CircleAvatar(backgroundColor: isRead ? const Color(0xFFF0F3F7) : const Color(0xFFE0EEFF), child: Icon(isRead ? Icons.notifications_none : Icons.notifications_active_outlined, color: isRead ? _muted : _blue)),
+                title: Text(title, style: TextStyle(fontWeight: isRead ? FontWeight.w500 : FontWeight.w800, color: _ink)),
+                subtitle: body.isEmpty ? null : Text(body, style: const TextStyle(color: _muted)),
+                onTap: isRead || id.isEmpty ? null : () async {
+                  try { await widget.api.markNotificationRead(id); _reload(); }
+                  catch (e) { if (context.mounted) _notice(context, e.toString()); }
+                },
+              ),
+            );
+          }),
+        ],
+      ));
+    },
+  );
+}
+
+class CommunitiesPage extends StatefulWidget {
+  const CommunitiesPage({super.key, required this.api});
+  final ApiClient api;
+  @override
+  State<CommunitiesPage> createState() => _CommunitiesPageState();
+}
+
+class _CommunitiesPageState extends State<CommunitiesPage> with SingleTickerProviderStateMixin {
+  late final TabController _tabs = TabController(length: 2, vsync: this);
+  late Future<Map<String, dynamic>> _groups;
+  late Future<Map<String, dynamic>> _channels;
+  @override
+  void initState() {
+    super.initState();
+    _groups = widget.api.groups();
+    _channels = widget.api.channels();
+  }
+  @override
+  void dispose() { _tabs.dispose(); super.dispose(); }
+  void _reload() => setState(() { _groups = widget.api.groups(); _channels = widget.api.channels(); });
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text('Сообщества', style: TextStyle(fontWeight: FontWeight.w800)),
+      actions: [IconButton(onPressed: _reload, icon: const Icon(Icons.refresh_rounded))],
+      bottom: TabBar(controller: _tabs, tabs: const [Tab(text: 'Группы'), Tab(text: 'Каналы')], labelColor: _blue),
+    ),
+    body: TabBarView(controller: _tabs, children: [
+      _communityList(_groups, 'groups', Icons.groups_rounded, join: true),
+      _communityList(_channels, 'channels', Icons.campaign_rounded, join: false),
+    ]),
+  );
+
+  Widget _communityList(Future<Map<String, dynamic>> future, String key, IconData icon, {required bool join}) =>
+    FutureBuilder<Map<String, dynamic>>(
+      future: future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+        if (snapshot.hasError) return Center(child: Padding(padding: const EdgeInsets.all(24), child: Text('Ошибка загрузки: ${snapshot.error}', textAlign: TextAlign.center)));
+        final list = (snapshot.data?[key] as List<dynamic>?) ?? [];
+        if (list.isEmpty) return Center(child: Padding(padding: const EdgeInsets.all(28), child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 48, color: _muted),
+          const SizedBox(height: 12),
+          Text(join ? 'Ты пока не состоишь в группах' : 'Ты пока не подписан на каналы', textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: _ink)),
+          const SizedBox(height: 8),
+          const Text('Список загружается с основного сервера.', textAlign: TextAlign.center, style: TextStyle(color: _muted)),
+          const SizedBox(height: 12),
+          OutlinedButton(onPressed: () async {
+            try {
+              final found = join ? await widget.api.discoverGroups() : await widget.api.discoverChannels();
+              final items = (found[key] as List<dynamic>?) ?? [];
+              if (!context.mounted) return;
+              showModalBottomSheet<void>(context: context, showDragHandle: true, builder: (ctx) => ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  Text(join ? 'Найти группы' : 'Найти каналы', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 12),
+                  if (items.isEmpty) const Padding(padding: EdgeInsets.all(20), child: Text('Ничего не найдено.')),
+                  ...items.map((raw) {
+                    final item = Map<String, dynamic>.from(raw as Map);
+                    final id = item['id'].toString();
+                    return ListTile(
+                      leading: CircleAvatar(child: Icon(icon)),
+                      title: Text(item['title']?.toString() ?? (join ? 'Группа' : 'Канал')),
+                      subtitle: Text(item['description']?.toString() ?? ''),
+                      trailing: IconButton(icon: Icon(join ? Icons.group_add_outlined : Icons.add_circle_outline), onPressed: () async {
+                        try {
+                          if (join) { await widget.api.joinGroup(id); } else { await widget.api.subscribeChannel(id); }
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          _reload();
+                        } catch (e) { if (ctx.mounted) _notice(ctx, e.toString()); }
+                      }),
+                    );
+                  }),
+                ],
+              ));
+            } catch (e) { if (context.mounted) _notice(context, e.toString()); }
+          }, child: const Text('Найти сообщества')),
+        ])));
+        return RefreshIndicator(onRefresh: () async => _reload(), child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: list.map((raw) {
+            final item = Map<String, dynamic>.from(raw as Map);
+            return Card(
+              elevation: 0, color: Colors.white, margin: const EdgeInsets.only(bottom: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: ListTile(
+                leading: CircleAvatar(backgroundColor: const Color(0xFFE0EEFF), child: Icon(icon, color: _blue)),
+                title: Text(item['title']?.toString() ?? (join ? 'Группа' : 'Канал'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text(item['description']?.toString() ?? ''),
+                trailing: Text((item['member_count'] ?? item['subscriber_count'] ?? '').toString(), style: const TextStyle(color: _muted)),
+              ),
+            );
+          }).toList(),
+        ));
+      },
+    );
 }
