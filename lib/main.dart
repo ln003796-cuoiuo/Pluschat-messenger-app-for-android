@@ -629,9 +629,9 @@ class ProfilePage extends StatelessWidget {
         const Text('Управление аккаунтом и безопасностью', textAlign: TextAlign.center, style: TextStyle(color: _muted)),
       ])),
       const SizedBox(height: 14),
-      _profileItem(context, Icons.shield_outlined, 'Безопасность и устройства', '2FA, сессии, ключ восстановления'),
-      _profileItem(context, Icons.lock_outline_rounded, 'Конфиденциальность', 'Видимость профиля и блокировки'),
-      _profileItem(context, Icons.notifications_none_rounded, 'Уведомления', 'Звуки и параметры чатов'),
+      _profileItem(context, Icons.shield_outlined, 'Безопасность и устройства', 'Активные сессии и устройства', onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => DevicesPage(api: api)))),
+      _profileItem(context, Icons.lock_outline_rounded, 'Конфиденциальность', 'Видимость профиля и разрешения', onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => PrivacySettingsPage(api: api)))),
+      _profileItem(context, Icons.notifications_none_rounded, 'Уведомления', 'Общие настройки уведомлений', onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => PrivacySettingsPage(api: api, notificationsOnly: true)))),
       _profileItem(context, Icons.palette_outlined, 'Оформление', 'Тема и внешний вид'),
       _profileItem(context, Icons.cloud_outlined, 'Состояние сервера', 'Проверить подключение', onTap: () async {
         try {
@@ -1027,4 +1027,153 @@ class _CommunitiesPageState extends State<CommunitiesPage> with SingleTickerProv
         ));
       },
     );
+}
+
+
+class DevicesPage extends StatefulWidget {
+  const DevicesPage({super.key, required this.api});
+  final ApiClient api;
+  @override
+  State<DevicesPage> createState() => _DevicesPageState();
+}
+
+class _DevicesPageState extends State<DevicesPage> {
+  late Future<Map<String, dynamic>> _future;
+  @override
+  void initState() { super.initState(); _future = widget.api.devices(); }
+  void _reload() => setState(() => _future = widget.api.devices());
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Устройства и сессии', style: TextStyle(fontWeight: FontWeight.w800))),
+    body: FutureBuilder<Map<String, dynamic>>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+        if (snapshot.hasError) return Center(child: Padding(padding: const EdgeInsets.all(24), child: Text('Не удалось загрузить устройства:\n${snapshot.error}', textAlign: TextAlign.center)));
+        final devices = (snapshot.data?['devices'] as List<dynamic>?) ?? [];
+        return ListView(padding: const EdgeInsets.all(16), children: [
+          Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)), child: const Text('Двухэтапная защита обязательна. Не отключай её и отзывай незнакомые сессии.', style: TextStyle(color: _ink, height: 1.4))),
+          const SizedBox(height: 12),
+          FilledButton.icon(onPressed: () async {
+            try { await widget.api.revokeOtherSessions(); _reload(); if (context.mounted) _notice(context, 'Другие сессии отозваны.'); }
+            catch (e) { if (context.mounted) _notice(context, e.toString()); }
+          }, icon: const Icon(Icons.phonelink_erase_rounded), label: const Text('Завершить другие сессии')),
+          const SizedBox(height: 16),
+          if (devices.isEmpty) const Padding(padding: EdgeInsets.all(24), child: Text('Нет данных об устройствах.', textAlign: TextAlign.center, style: TextStyle(color: _muted))),
+          ...devices.map((raw) {
+            final d = Map<String, dynamic>.from(raw as Map);
+            final id = d['id']?.toString() ?? '';
+            final name = d['device_name']?.toString() ?? d['name']?.toString() ?? 'Устройство';
+            final platform = d['platform']?.toString() ?? 'unknown';
+            return Card(elevation: 0, color: Colors.white, child: ListTile(
+              leading: const CircleAvatar(backgroundColor: Color(0xFFE0EEFF), child: Icon(Icons.devices_rounded, color: _blue)),
+              title: Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text('$platform · ${d['last_seen_at'] ?? 'дата неизвестна'}', style: const TextStyle(color: _muted)),
+              trailing: id.isEmpty ? null : IconButton(icon: const Icon(Icons.block_rounded, color: Color(0xFFB42318)), onPressed: () async {
+                try { await widget.api.revokeDevice(id); _reload(); }
+                catch (e) { if (context.mounted) _notice(context, e.toString()); }
+              }),
+            ));
+          }),
+        ]);
+      },
+    ),
+  );
+}
+
+class PrivacySettingsPage extends StatefulWidget {
+  const PrivacySettingsPage({super.key, required this.api, this.notificationsOnly = false});
+  final ApiClient api;
+  final bool notificationsOnly;
+  @override
+  State<PrivacySettingsPage> createState() => _PrivacySettingsPageState();
+}
+
+class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
+  bool _loading = true;
+  bool _saving = false;
+  String _visibility = 'contacts';
+  bool _showBirthday = false;
+  bool _showLocal = false;
+  bool _locationSharing = false;
+  bool _notifications = true;
+  String? _error;
+
+  @override
+  void initState() { super.initState(); _load(); }
+  Future<void> _load() async {
+    try {
+      final result = await widget.api.settings();
+      final s = Map<String, dynamic>.from((result['settings'] as Map?) ?? const {});
+      if (mounted) setState(() {
+        _visibility = s['profile_visibility']?.toString() ?? 'contacts';
+        _showBirthday = s['show_birth_date'] == true || s['show_birth_date'] == 1 || s['show_birth_date'] == '1';
+        _showLocal = s['show_local_group'] == true || s['show_local_group'] == 1 || s['show_local_group'] == '1';
+        _locationSharing = s['location_sharing'] == true || s['location_sharing'] == 1 || s['location_sharing'] == '1';
+        _notifications = !(s['notifications_enabled'] == false || s['notifications_enabled'] == 0 || s['notifications_enabled'] == '0');
+        _loading = false;
+      });
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  Future<void> _save([Map<String, dynamic>? extra]) async {
+    setState(() { _saving = true; _error = null; });
+    try {
+      await widget.api.updateSettings(extra ?? {
+        'profile_visibility': _visibility,
+        'show_birth_date': _showBirthday,
+        'show_local_group': _showLocal,
+        'location_sharing': _locationSharing,
+        'notifications_enabled': _notifications,
+      });
+      if (mounted) _notice(context, 'Настройки сохранены.');
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text(widget.notificationsOnly ? 'Уведомления' : 'Конфиденциальность', style: const TextStyle(fontWeight: FontWeight.w800))),
+    body: _loading ? const Center(child: CircularProgressIndicator()) : ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        if (_error != null) Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(_error!, style: const TextStyle(color: Color(0xFFB42318)))),
+        if (widget.notificationsOnly) ...[
+          SwitchListTile(
+            tileColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Уведомления включены', style: TextStyle(fontWeight: FontWeight.w700)),
+            subtitle: const Text('Общий переключатель на сервере'),
+            value: _notifications,
+            onChanged: (v) { setState(() => _notifications = v); _save({'notifications_enabled': v}); },
+          ),
+          const SizedBox(height: 12),
+          const Text('Раздельные настройки по категориям появятся после добавления соответствующих параметров в API хоста.', style: TextStyle(color: _muted, height: 1.4)),
+        ] else ...[
+          Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Кто видит профиль', style: TextStyle(fontWeight: FontWeight.w800, color: _ink)),
+            const SizedBox(height: 8),
+            RadioListTile<String>(contentPadding: EdgeInsets.zero, title: const Text('Все пользователи'), value: 'everyone', groupValue: _visibility, onChanged: (v) => setState(() => _visibility = v!)),
+            RadioListTile<String>(contentPadding: EdgeInsets.zero, title: const Text('Контакты'), value: 'contacts', groupValue: _visibility, onChanged: (v) => setState(() => _visibility = v!)),
+            RadioListTile<String>(contentPadding: EdgeInsets.zero, title: const Text('Никто'), value: 'nobody', groupValue: _visibility, onChanged: (v) => setState(() => _visibility = v!)),
+          ])),
+          const SizedBox(height: 10),
+          SwitchListTile(tileColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), title: const Text('Показывать день рождения'), value: _showBirthday, onChanged: (v) => setState(() => _showBirthday = v)),
+          const SizedBox(height: 6),
+          SwitchListTile(tileColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), title: const Text('Показывать местную группу'), value: _showLocal, onChanged: (v) => setState(() => _showLocal = v)),
+          const SizedBox(height: 6),
+          SwitchListTile(tileColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), title: const Text('Разрешить использование района'), subtitle: const Text('Местоположение необязательно'), value: _locationSharing, onChanged: (v) => setState(() => _locationSharing = v)),
+          const SizedBox(height: 6),
+          SwitchListTile(tileColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), title: const Text('Уведомления'), value: _notifications, onChanged: (v) => setState(() => _notifications = v)),
+          const SizedBox(height: 16),
+          FilledButton(onPressed: _saving ? null : () => _save(), child: _saving ? const CircularProgressIndicator() : const Text('Сохранить настройки')),
+        ],
+      ],
+    ),
+  );
 }
