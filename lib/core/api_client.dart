@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'session_store.dart';
 
@@ -171,6 +172,16 @@ class ApiClient {
   });
 
   Future<Map<String, dynamic>> me() => get('/api/v1/auth/me');
+
+  Future<Map<String, dynamic>> uploadAvatar(XFile file) async {
+    final request = http.MultipartRequest('POST', _uri('/api/v1/me/avatar'));
+    final token = await SessionStore.instance.readToken();
+    if (token != null && token.isNotEmpty) request.headers['Authorization'] = 'Bearer $token';
+    request.headers['Accept'] = 'application/json';
+    request.files.add(await http.MultipartFile.fromPath('avatar', file.path, filename: file.name));
+    final streamed = await _client.send(request);
+    return _decode(await http.Response.fromStream(streamed));
+  }
   Future<Map<String, dynamic>> forgotPassword(String email) =>
       post('/api/v1/auth/password/forgot',
           authenticated: false, body: {'email': email.trim()});
