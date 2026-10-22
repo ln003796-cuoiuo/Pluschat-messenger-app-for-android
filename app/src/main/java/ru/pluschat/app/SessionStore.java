@@ -48,6 +48,15 @@ public final class SessionStore {
         prefs(context).edit().putString("crypto_" + key, value).apply();
     }
 
+    public static boolean appLockEnabled(Context context) {
+        try { return prefs(context).getBoolean("app_lock_enabled", false); }
+        catch (Exception e) { return false; }
+    }
+    public static void setAppLockEnabled(Context context, boolean enabled) {
+        try { prefs(context).edit().putBoolean("app_lock_enabled", enabled).apply(); }
+        catch (Exception ignored) {}
+    }
+
     public static void clear(Context context) {
         // Keep device binding and E2EE private keys across logout. Deleting crypto keys
         // while the server still pins the old public identity would make this device
