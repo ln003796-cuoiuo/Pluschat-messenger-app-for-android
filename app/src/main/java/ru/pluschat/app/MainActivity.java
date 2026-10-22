@@ -236,6 +236,7 @@ public class MainActivity extends Activity {
         else if (target.equals("notifications")) notificationsScreen();
         else if (target.equals("profile")) profileScreen();
         else if (target.equals("settings")) settingsScreen();
+        else if (target.equals("hidden_chats")) hiddenChatsScreen();
         else if (target.equals("privacy")) privacyScreen();
         else if (target.equals("appearance")) appearanceScreen();
         else if (target.equals("chat_info")) chatInfoScreen();
@@ -689,7 +690,7 @@ public class MainActivity extends Activity {
             if (arr == null) arr = data.optJSONArray("data");
             if (arr != null) for (int i = 0; i < arr.length(); i++) {
                 JSONObject chat = arr.optJSONObject(i);
-                if (chat != null) chats.add(chat);
+                if (chat != null && !SessionStore.isChatHidden(this, chat.optString("id", chat.optString("chat_id", "")))) chats.add(chat);
             }
             chatList.removeAllViews();
             if (chats.isEmpty()) {
@@ -1164,6 +1165,7 @@ public class MainActivity extends Activity {
         account.setOnClickListener(v -> showPage("profile"));
         body.addView(account);
         body.addView(button("Внешний вид  ›", () -> showPage("appearance")));
+        body.addView(button("Скрытые чаты", () -> showPage("hidden_chats")));
         body.addView(button("Приватность и безопасность  ›", () -> showPage("privacy")));
         body.addView(button("Уведомления", () -> showPage("notifications")));
         body.addView(text("Двухэтапная аутентификация обязательна. Изменить или отключить её без повторной проверки личности нельзя.", 12, false, muted));
@@ -1192,6 +1194,38 @@ public class MainActivity extends Activity {
         body.addView(button("Разрешения Android", () -> showPage("permissions")));
         body.addView(button("Выйти из аккаунта", this::logout));
         body.addView(button("Назад", () -> showPage("home")));
+    }
+
+    private void hiddenChatsScreen() {
+        title("Скрытые чаты");
+        subtitle("Скрытые только на этом устройстве; история не удаляется.");
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        body.addView(list);
+        request("GET", "conversations", null, true, (data, error) -> {
+            if (error != null) { message("Не удалось загрузить список чатов."); return; }
+            JSONArray arr = data.optJSONArray("conversations");
+            if (arr == null) arr = data.optJSONArray("data");
+            boolean found = false;
+            if (arr != null) for (int i = 0; i < arr.length(); i++) {
+                JSONObject chat = arr.optJSONObject(i);
+                if (chat == null) continue;
+                String id = chat.optString("id", chat.optString("chat_id", ""));
+                if (id.isEmpty() || !SessionStore.isChatHidden(this, id)) continue;
+                found = true;
+                JSONObject peer = chat.optJSONObject("other_user");
+                String name = chat.optString("title", chat.optString("name", peer == null ? "Чат " + id : peer.optString("first_name", "Чат")));
+                list.addView(button(name + " — вернуть в список", () -> {
+                    try {
+                        SessionStore.setChatHidden(this, id, false);
+                        message("Чат снова отображается.");
+                        showPage("hidden_chats");
+                    } catch (Exception e) { message("Не удалось изменить настройку."); }
+                }));
+            }
+            if (!found) list.addView(text("Нет скрытых чатов.", 14, false, muted));
+        });
+        body.addView(button("Назад к настройкам", () -> showPage("settings")));
     }
 
     private void appearanceScreen() {
@@ -1404,6 +1438,14 @@ public class MainActivity extends Activity {
             showPage("chat");
         }));
         body.addView(button("Поиск в переписке", () -> showPage("chat_search")));
+        body.addView(button("Скрыть чат", () -> {
+            if (currentChatId.isEmpty()) { message("Не удалось определить чат."); return; }
+            try {
+                SessionStore.setChatHidden(this, currentChatId, true);
+                message("Чат скрыт на этом устройстве. Управлять им можно в настройках.");
+                showPage("home");
+            } catch (Exception e) { message("Не удалось сохранить настройку скрытого чата."); }
+        }));
         body.addView(button("Уведомления", () -> showPage("notifications")));
         body.addView(button("Очистить историю у меня", this::clearCurrentChatHistory));
         body.addView(button("Назад в переписку", () -> showPage("chat")));
