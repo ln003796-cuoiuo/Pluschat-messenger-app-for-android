@@ -17,7 +17,6 @@ class _AuthScreenState extends State<AuthScreen> {
   final _login = TextEditingController();
   final _password = TextEditingController();
   final _email = TextEditingController();
-  final _phone = TextEditingController();
   final _first = TextEditingController();
   final _last = TextEditingController();
   final _code = TextEditingController();
@@ -27,7 +26,6 @@ class _AuthScreenState extends State<AuthScreen> {
   String? _message;
   bool _error = false;
   bool _needsEmailCode = false;
-  bool _needsPhoneCode = false;
   bool _needsTwoFactorCode = false;
   bool _needsTwoFactorSetup = false;
   String? _challengeId;
@@ -36,7 +34,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   void dispose() {
-    for (final c in [_login, _password, _email, _phone, _first, _last, _code]) {
+    for (final c in [_login, _password, _email, _first, _last, _code]) {
       c.dispose();
     }
     super.dispose();
@@ -90,18 +88,14 @@ class _AuthScreenState extends State<AuthScreen> {
       if (_register) {
         final result = await widget.api.register(
           email: _email.text,
-          phone: _phone.text,
           password: _password.text,
           firstName: _first.text,
           lastName: _last.text,
         );
-        final smsSent = result['phone_verification_sent'] == true;
         if (mounted) setState(() {
-          _needsPhoneCode = true;
-          _message = smsSent
-              ? 'Аккаунт создан. Введи код из SMS; код подтверждения почты придёт отдельно.'
-              : 'Аккаунт создан, но сервер не подтвердил отправку SMS. Можно запросить код повторно через 60 секунд.';
-          _error = !smsSent;
+          _needsEmailCode = true;
+          _message = 'Аккаунт создан. Введи шестизначный код подтверждения из письма.';
+          _error = false;
         });
         return;
       }
@@ -143,18 +137,6 @@ class _AuthScreenState extends State<AuthScreen> {
     });
   }
 
-  Future<void> _verifyPhone() async {
-    await _run(() async {
-      await widget.api.verifyPhone(phone: _phone.text, code: _code.text);
-      if (mounted) setState(() {
-        _needsPhoneCode = false;
-        _needsEmailCode = true;
-        _message = 'Телефон подтверждён. Теперь введи шестизначный код из письма.';
-        _error = false;
-      });
-    });
-  }
-
   Future<void> _verifyLoginTwoFactor() async {
     await _run(() async {
       final challenge = _challengeId;
@@ -192,7 +174,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final verify = _needsPhoneCode || _needsEmailCode || _needsTwoFactorCode || _needsTwoFactorSetup;
+    final verify = _needsEmailCode || _needsTwoFactorCode || _needsTwoFactorSetup;
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -232,18 +214,11 @@ class _AuthScreenState extends State<AuthScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         if (verify) ...[
-                          Text(_needsPhoneCode ? 'Код из SMS' : _needsEmailCode ? 'Код из письма' : _needsTwoFactorSetup ? 'Настройка двухэтапной защиты' : 'Код двухэтапной защиты', style: const TextStyle(fontWeight: FontWeight.w700, color: plusInk)),
+                          Text(_needsEmailCode ? 'Код из письма' : _needsTwoFactorSetup ? 'Настройка двухэтапной защиты' : 'Код двухэтапной защиты', style: const TextStyle(fontWeight: FontWeight.w700, color: plusInk)),
                           const SizedBox(height: 8),
                           TextFormField(controller: _code, keyboardType: TextInputType.number, maxLength: 6, decoration: const InputDecoration(hintText: '123456', counterText: ''), validator: (v) => (v == null || !RegExp(r'^\d{6}$').hasMatch(v)) ? 'Введи 6 цифр' : null),
                           const SizedBox(height: 14),
-                          FilledButton(onPressed: _busy ? null : (_needsPhoneCode ? _verifyPhone : _needsEmailCode ? _verifyEmail : _needsTwoFactorSetup ? _confirmTwoFactorSetup : _verifyLoginTwoFactor), child: _busy ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : Text(_needsTwoFactorSetup ? 'Включить 2FA' : _needsTwoFactorCode ? 'Проверить код' : 'Подтвердить')),
-                          if (_needsPhoneCode) TextButton(
-                            onPressed: _busy ? null : () => _run(() async {
-                              await widget.api.resendPhoneCode(_phone.text);
-                              if (mounted) setState(() { _message = 'Если номер зарегистрирован, новый SMS-код отправлен.'; _error = false; });
-                            }),
-                            child: const Text('Запросить SMS-код повторно'),
-                          ),
+                          FilledButton(onPressed: _busy ? null : (_needsEmailCode ? _verifyEmail : _needsTwoFactorSetup ? _confirmTwoFactorSetup : _verifyLoginTwoFactor), child: _busy ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : Text(_needsTwoFactorSetup ? 'Включить 2FA' : _needsTwoFactorCode ? 'Проверить код' : 'Подтвердить')),
                           if (_needsEmailCode) TextButton(
                             onPressed: _busy ? null : () => _run(() async {
                               await widget.api.resendEmailCode(_email.text);
@@ -259,7 +234,6 @@ class _AuthScreenState extends State<AuthScreen> {
                             const SizedBox(height: 12),
                             _field(_email, 'Электронная почта', icon: Icons.mail_outline, type: TextInputType.emailAddress, validator: (v) => (v == null || !v.contains('@')) ? 'Укажи корректный email' : null),
                             const SizedBox(height: 12),
-                            _field(_phone, 'Телефон, например +79991234567', icon: Icons.phone_outlined, type: TextInputType.phone, validator: (v) => (v == null || !RegExp(r'^\+[1-9]\d{7,14}$').hasMatch(v.replaceAll(' ', ''))) ? 'Нужен международный формат с +' : null),
                           ] else
                             _field(_login, 'Email или никнейм', icon: Icons.person_outline, type: TextInputType.emailAddress, validator: (v) => (v == null || v.trim().isEmpty) ? 'Заполни поле' : null),
                           if (_register) const SizedBox(height: 12),
