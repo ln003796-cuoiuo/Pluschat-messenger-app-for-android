@@ -100,7 +100,7 @@ class _ChatsPageState extends State<ChatsPage> {
               final item = Map<String, dynamic>.from(list[index] as Map);
               final peer = Map<String, dynamic>.from((item['other_user'] as Map?) ?? const {});
               final name = [peer['first_name'], peer['last_name']].where((e) => e != null && e.toString().isNotEmpty).join(' ');
-              final title = name.isEmpty ? '@${peer['username'] ?? 'user'}' : name;
+              final title = name.isEmpty ? "@${peer['username'] ?? 'user'}" : name;
               return Material(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(18),
@@ -205,7 +205,7 @@ class ProfilePage extends StatelessWidget {
             final first = user['first_name']?.toString() ?? '';
             final last = user['last_name']?.toString() ?? '';
             final full = '$first $last'.trim();
-            final name = full.isEmpty ? (user['username']?.toString().isNotEmpty == true ? '@${user['username']}' : 'Ваш профиль') : full;
+            final name = full.isEmpty ? (user['username']?.toString().isNotEmpty == true ? "@${user['username']}" : 'Ваш профиль') : full;
             return Column(children: [
               Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: plusInk), textAlign: TextAlign.center),
               const SizedBox(height: 4),
@@ -222,7 +222,7 @@ class ProfilePage extends StatelessWidget {
       _profileItem(context, Icons.cloud_outlined, 'Состояние сервера', 'Проверить подключение', onTap: () async {
         try {
           final result = await api.health();
-          if (context.mounted) showPluschatNotice(context, 'API: ${result['service'] ?? 'online'}; БД: ${result['database'] ?? 'неизвестно'}; схема: ${result['schema'] ?? 'неизвестно'}');
+          if (context.mounted) showPluschatNotice(context, "API: ${result['service'] ?? 'online'}; БД: ${result['database'] ?? 'неизвестно'}; схема: ${result['schema'] ?? 'неизвестно'}");
         } catch (e) {
           if (context.mounted) showPluschatNotice(context, 'Сервер недоступен: $e');
         }
@@ -315,7 +315,7 @@ class _SearchPageState extends State<SearchPage> {
       final id = result['conversation_id']?.toString();
       if (id == null || id.isEmpty) throw const ApiException('Сервер не вернул ID переписки.');
       final name = [user['first_name'], user['last_name']].where((v) => v != null && v.toString().isNotEmpty).join(' ');
-      final title = name.isEmpty ? '@${user['username'] ?? 'user'}' : name;
+      final title = name.isEmpty ? "@${user['username'] ?? 'user'}" : name;
       if (!mounted) return;
       await Navigator.of(context).push(MaterialPageRoute(builder: (_) => ConversationPage(
         api: widget.api,
@@ -355,14 +355,14 @@ class _SearchPageState extends State<SearchPage> {
           ..._users.map((raw) {
             final user = Map<String, dynamic>.from(raw as Map);
             final fullName = [user['first_name'], user['last_name']].where((v) => v != null && v.toString().isNotEmpty).join(' ');
-            final name = fullName.isEmpty ? '@${user['username'] ?? 'user'}' : fullName;
+            final name = fullName.isEmpty ? "@${user['username'] ?? 'user'}" : fullName;
             return Card(
               elevation: 0, color: Colors.white, margin: const EdgeInsets.only(bottom: 6),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               child: ListTile(
                 leading: CircleAvatar(backgroundColor: const Color(0xFFDCEBFF), child: Text(name.characters.first.toUpperCase(), style: const TextStyle(color: plusBlue, fontWeight: FontWeight.w800))),
                 title: Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: Text('@${user['username'] ?? ''}', style: const TextStyle(color: plusMuted)),
+                subtitle: Text("@${user['username'] ?? ''}", style: const TextStyle(color: plusMuted)),
                 trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                   IconButton(
                     tooltip: 'Добавить в друзья',
@@ -654,7 +654,7 @@ class _DevicesPageState extends State<DevicesPage> {
             return Card(elevation: 0, color: Colors.white, child: ListTile(
               leading: const CircleAvatar(backgroundColor: Color(0xFFE0EEFF), child: Icon(Icons.devices_rounded, color: plusBlue)),
               title: Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: Text('$platform · ${d['last_seen_at'] ?? 'дата неизвестна'}', style: const TextStyle(color: plusMuted)),
+              subtitle: Text("$platform · ${d['last_seen_at'] ?? 'дата неизвестна'}", style: const TextStyle(color: plusMuted)),
               trailing: id.isEmpty ? null : IconButton(icon: const Icon(Icons.block_rounded, color: Color(0xFFB42318)), onPressed: () async {
                 try { await widget.api.revokeDevice(id); _reload(); }
                 catch (e) { if (context.mounted) showPluschatNotice(context, e.toString()); }
@@ -806,11 +806,11 @@ class _FriendsPageState extends State<FriendsPage> {
           final user = isRequest ? Map<String, dynamic>.from((raw['user'] as Map?) ?? const {}) : raw;
           final id = raw['id']?.toString() ?? '';
           final fullName = [user['first_name'], user['last_name']].where((v) => v != null && v.toString().isNotEmpty).join(' ');
-          final name = fullName.isEmpty ? '@${user['username'] ?? 'user'}' : fullName;
+          final name = fullName.isEmpty ? "@${user['username'] ?? 'user'}" : fullName;
           return Card(elevation: 0, color: Colors.white, margin: const EdgeInsets.only(bottom: 7), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), child: ListTile(
             leading: CircleAvatar(backgroundColor: const Color(0xFFE0EEFF), child: Text(name.characters.first.toUpperCase(), style: const TextStyle(color: plusBlue, fontWeight: FontWeight.w800))),
             title: Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
-            subtitle: Text(isRequest ? 'Заявка в друзья' : '@${user['username'] ?? ''}', style: const TextStyle(color: plusMuted)),
+            subtitle: Text(isRequest ? 'Заявка в друзья' : "@${user['username'] ?? ''}", style: const TextStyle(color: plusMuted)),
             trailing: isRequest ? Row(mainAxisSize: MainAxisSize.min, children: [
               IconButton(tooltip: 'Принять', onPressed: () async {
                 try { await widget.api.respondFriendRequest(id, accept: true); _reload(); }
