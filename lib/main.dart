@@ -199,7 +199,7 @@ class _AuthScreenState extends State<AuthScreen> {
     if (!_formKey.currentState!.validate()) return;
     await _run(() async {
       if (_register) {
-        await widget.api.register(
+        final result = await widget.api.register(
           email: _email.text,
           phone: _phone.text,
           password: _password.text,
