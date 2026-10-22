@@ -363,7 +363,7 @@ public class MainActivity extends Activity {
         forgot.setPadding(0, dp(6), 0, dp(12)); forgot.setOnClickListener(v -> showPage("forgot_password")); body.addView(forgot);
         body.addView(button("Войти", this::login));
         TextView divider = text("или продолжить с", 12, false, muted); divider.setGravity(Gravity.CENTER); divider.setPadding(0, dp(16), 0, dp(8)); body.addView(divider);
-        body.addView(text("После пароля потребуется одноразовый код двухэтапной защиты.", 12, false, muted));
+        body.addView(text("Одноразовый код потребуется, если ты включил двухэтапную защиту.", 12, false, muted));
         TextView signup = text("Нет аккаунта?  Создать", 13, true, 0xffb7adff); signup.setGravity(Gravity.CENTER); signup.setPadding(0, dp(22), 0, dp(12)); signup.setOnClickListener(v -> {  showPage("register"); }); body.addView(signup);
     }
     private void forgotPasswordScreen() {
@@ -1157,9 +1157,9 @@ public class MainActivity extends Activity {
             if(arr==null||arr.length()==0){results.addView(text("Новых уведомлений нет.",14,false,muted));return;}
             for(int i=0;i<arr.length();i++){JSONObject n=arr.optJSONObject(i);if(n==null)continue;
                 String id=n.optString("id","");String title=n.optString("title",n.optString("body","Уведомление"));
-                results.addView(button(title,()->request("POST","notifications/"+id+"/read",new JSONObject(),true,(notificationData,apiError)->message("Отмечено как прочитанное."))));
+                results.addView(button(title,()->request("POST","notifications/"+id+"/read",new JSONObject(),true,(notificationData,apiError)->message(notificationData.optBoolean("ok", false) ? "Отмечено как прочитанное." : "Не удалось отметить уведомление."))));
             }
-            body.addView(button("Отметить все прочитанным",()->request("POST","notifications/read-all",new JSONObject(),true,(notificationData,apiError)->message("Готово."))));
+            body.addView(button("Отметить все прочитанным",()->request("POST","notifications/read-all",new JSONObject(),true,(notificationData,apiError)->message(notificationData.optBoolean("ok", false) ? "Все уведомления отмечены прочитанными." : "Не удалось обновить уведомления."))));
         });
         body.addView(button("Назад",()->showPage("home")));
     }
@@ -1229,7 +1229,7 @@ public class MainActivity extends Activity {
         body.addView(button("Скрытые чаты", () -> showPage("hidden_chats")));
         body.addView(button("Приватность и безопасность  ›", () -> showPage("privacy")));
         body.addView(button("Уведомления", () -> showPage("notifications")));
-        body.addView(text("Двухэтапная аутентификация обязательна. Изменить или отключить её без повторной проверки личности нельзя.", 12, false, muted));
+        body.addView(text("Двухэтапная аутентификация необязательна. Если включишь её, при входе потребуется код из приложения-аутентификатора.", 12, false, muted));
         Switch biometricLock = new Switch(this);
         biometricLock.setText("Блокировка приложения биометрией");
         biometricLock.setTextColor(white);
