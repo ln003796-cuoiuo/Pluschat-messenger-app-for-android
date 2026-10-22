@@ -116,6 +116,11 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _error = false;
   bool _needsEmailCode = false;
   bool _needsPhoneCode = false;
+  bool _needsTwoFactorCode = false;
+  bool _needsTwoFactorSetup = false;
+  String? _challengeId;
+  String? _setupId;
+  String? _setupSecret;
 
   @override
   void dispose() {
@@ -166,13 +171,32 @@ class _AuthScreenState extends State<AuthScreen> {
         await SessionStore.instance.saveToken(token);
       }
       if (result['requires_2fa'] == true) {
-        setState(() { _message = 'Сервер запросил код 2FA. Экран проверки 2FA будет подключён к соответствующему серверному сценарию.'; _error = true; });
-        await SessionStore.instance.clear();
+        _challengeId = result['challenge_id']?.toString();
+        if (_challengeId == null || _challengeId!.isEmpty) {
+          throw const ApiException('Сервер не вернул идентификатор проверки 2FA.');
+        }
+        if (mounted) setState(() {
+          _needsTwoFactorCode = true;
+          _message = 'Введи шестизначный код из приложения-аутентификатора.';
+          _error = false;
+        });
         return;
       }
       if (result['requires_2fa_setup'] == true) {
-        setState(() { _message = 'Для аккаунта требуется первичная настройка 2FA. Вход не завершён: сначала подключаем безопасную настройку двухэтапной защиты.'; _error = true; });
-        await SessionStore.instance.clear();
+        if (token == null || token.isEmpty) {
+          throw const ApiException('Сервер не выдал временный токен для настройки 2FA.');
+        }
+        final setup = await widget.api.setupTwoFactor();
+        _setupId = setup['setup_id']?.toString();
+        _setupSecret = setup['secret']?.toString();
+        if (_setupId == null || _setupSecret == null) {
+          throw const ApiException('Сервер не вернул данные для настройки 2FA.');
+        }
+        if (mounted) setState(() {
+          _needsTwoFactorSetup = true;
+          _message = 'Добавь этот секрет в приложение-аутентификатор (например, Aegis или Google Authenticator), затем введи текущий 6-значный код.';
+          _error = false;
+        });
         return;
       }
       widget.onAuthenticated();
@@ -191,6 +215,28 @@ class _AuthScreenState extends State<AuthScreen> {
     });
   }
 
+  Future<void> _verifyLoginTwoFactor() async {
+    await _run(() async {
+      final challenge = _challengeId;
+      if (challenge == null) throw const ApiException('Запрос проверки 2FA истёк. Войди заново.');
+      await widget.api.verifyTwoFactor(challengeId: challenge, code: _code.text);
+      widget.onAuthenticated();
+    });
+  }
+
+  Future<void> _confirmTwoFactorSetup() async {
+    await _run(() async {
+      final setupId = _setupId;
+      if (setupId == null) throw const ApiException('Настройка 2FA истекла. Войди заново.');
+      final result = await widget.api.confirmTwoFactor(setupId: setupId, code: _code.text);
+      final token = result['token']?.toString();
+      if (token != null && token.isNotEmpty) await SessionStore.instance.saveToken(token);
+      _setupId = null;
+      _setupSecret = null;
+      widget.onAuthenticated();
+    });
+  }
+
   Future<void> _verifyEmail() async {
     await _run(() async {
       await widget.api.verifyEmail(email: _email.text, code: _code.text);
@@ -205,7 +251,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final verify = _needsPhoneCode || _needsEmailCode;
+    final verify = _needsPhoneCode || _needsEmailCode || _needsTwoFactorCode || _needsTwoFactorSetup;
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -245,11 +291,11 @@ class _AuthScreenState extends State<AuthScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         if (verify) ...[
-                          Text(_needsPhoneCode ? 'Код из SMS' : 'Код из письма', style: const TextStyle(fontWeight: FontWeight.w700, color: _ink)),
+                          Text(_needsPhoneCode ? 'Код из SMS' : _needsEmailCode ? 'Код из письма' : _needsTwoFactorSetup ? 'Настройка двухэтапной защиты' : 'Код двухэтапной защиты', style: const TextStyle(fontWeight: FontWeight.w700, color: _ink)),
                           const SizedBox(height: 8),
                           TextFormField(controller: _code, keyboardType: TextInputType.number, maxLength: 6, decoration: const InputDecoration(hintText: '123456', counterText: ''), validator: (v) => (v == null || !RegExp(r'^\d{6}$').hasMatch(v)) ? 'Введи 6 цифр' : null),
                           const SizedBox(height: 14),
-                          FilledButton(onPressed: _busy ? null : (_needsPhoneCode ? _verifyPhone : _verifyEmail), child: _busy ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Подтвердить')),
+                          FilledButton(onPressed: _busy ? null : (_needsPhoneCode ? _verifyPhone : _needsEmailCode ? _verifyEmail : _needsTwoFactorSetup ? _confirmTwoFactorSetup : _verifyLoginTwoFactor), child: _busy ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : Text(_needsTwoFactorSetup ? 'Включить 2FA' : _needsTwoFactorCode ? 'Проверить код' : 'Подтвердить')),
                           if (_needsPhoneCode) TextButton(
                             onPressed: _busy ? null : () => _run(() async {
                               await widget.api.resendPhoneCode(_phone.text);
