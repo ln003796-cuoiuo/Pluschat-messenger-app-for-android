@@ -167,6 +167,34 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  Future<void> _forgotPassword() async {
+    final emailController = TextEditingController(text: _login.text.contains('@') ? _login.text : '');
+    final email = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Восстановление пароля'),
+        content: TextField(
+          controller: emailController,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(hintText: 'Электронная почта'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Отмена')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, emailController.text.trim()), child: const Text('Отправить ссылку')),
+        ],
+      ),
+    );
+    emailController.dispose();
+    if (email == null || email.isEmpty || !mounted) return;
+    await _run(() async {
+      await widget.api.forgotPassword(email);
+      if (mounted) setState(() {
+        _message = 'Если аккаунт с таким адресом существует, инструкция по восстановлению отправлена на почту.';
+        _error = false;
+      });
+    });
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     await _run(() async {
@@ -352,6 +380,10 @@ class _AuthScreenState extends State<AuthScreen> {
                             style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(54), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
                             onPressed: _busy ? null : _submit,
                             child: _busy ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Text(_register ? 'Создать аккаунт' : 'Войти', style: const TextStyle(fontWeight: FontWeight.w700)),
+                          ),
+                          if (!_register) Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(onPressed: _busy ? null : _forgotPassword, child: const Text('Забыли пароль?')),
                           ),
                         ],
                       ],
