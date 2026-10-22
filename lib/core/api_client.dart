@@ -30,6 +30,13 @@ class ApiClient {
     return _decode(response);
   }
 
+  Future<Map<String, dynamic>> delete(String path,
+      {Map<String, String>? query, bool authenticated = true}) async {
+    final response = await _client.delete(_uri(path, query),
+        headers: await _headers(authenticated));
+    return _decode(response);
+  }
+
   Future<Map<String, dynamic>> post(String path,
       {Map<String, dynamic> body = const {}, bool authenticated = true}) async {
     final response = await _client.post(_uri(path),
@@ -184,6 +191,99 @@ class ApiClient {
       get('/api/v1/conversations/$id/messages');
   Future<Map<String, dynamic>> markRead(String id) =>
       post('/api/v1/conversations/$id/read');
+
+  // Social, groups, channels, notifications and account security APIs.
+  Future<Map<String, dynamic>> friends() => get('/api/v1/friends');
+  Future<Map<String, dynamic>> friendRequests({String direction = 'incoming'}) =>
+      get('/api/v1/friends/requests', query: {'direction': direction});
+  Future<Map<String, dynamic>> sendFriendRequest(String userId) =>
+      post('/api/v1/friends/requests', body: {'user_id': userId});
+  Future<Map<String, dynamic>> respondFriendRequest(String requestId, {required bool accept}) =>
+      post('/api/v1/friends/requests/$requestId/${accept ? 'accept' : 'decline'}');
+  Future<Map<String, dynamic>> removeFriend(String userId) =>
+      delete('/api/v1/friends/$userId');
+
+  Future<Map<String, dynamic>> notifications() => get('/api/v1/notifications');
+  Future<Map<String, dynamic>> markNotificationRead(String id) =>
+      post('/api/v1/notifications/$id/read');
+  Future<Map<String, dynamic>> markAllNotificationsRead() =>
+      post('/api/v1/notifications/read-all');
+
+  Future<Map<String, dynamic>> devices() => get('/api/v1/devices');
+  Future<Map<String, dynamic>> revokeDevice(String id) =>
+      post('/api/v1/devices/$id/revoke');
+  Future<Map<String, dynamic>> revokeOtherSessions() =>
+      post('/api/v1/auth/sessions/revoke-others');
+  Future<Map<String, dynamic>> settings() => get('/api/v1/settings');
+  Future<Map<String, dynamic>> updateSettings(Map<String, dynamic> values) =>
+      post('/api/v1/settings', body: values);
+
+  Future<Map<String, dynamic>> groups() => get('/api/v1/groups');
+  Future<Map<String, dynamic>> discoverGroups() => get('/api/v1/groups/discover');
+  Future<Map<String, dynamic>> createGroup(Map<String, dynamic> values) =>
+      post('/api/v1/groups', body: values);
+  Future<Map<String, dynamic>> joinGroup(String id) => post('/api/v1/groups/$id/join');
+  Future<Map<String, dynamic>> leaveGroup(String id) => post('/api/v1/groups/$id/leave');
+  Future<Map<String, dynamic>> groupMessages(String id) => get('/api/v1/groups/$id/messages');
+  Future<Map<String, dynamic>> sendGroupMessage(String id, Map<String, dynamic> values) =>
+      post('/api/v1/groups/$id/messages', body: values);
+
+  Future<Map<String, dynamic>> channels() => get('/api/v1/channels');
+  Future<Map<String, dynamic>> discoverChannels() => get('/api/v1/channels/discover');
+  Future<Map<String, dynamic>> createChannel(Map<String, dynamic> values) =>
+      post('/api/v1/channels', body: values);
+  Future<Map<String, dynamic>> subscribeChannel(String id) =>
+      post('/api/v1/channels/$id/subscribe');
+  Future<Map<String, dynamic>> channelPosts(String id) => get('/api/v1/channels/$id/posts');
+  Future<Map<String, dynamic>> createChannelPost(String id, Map<String, dynamic> values) =>
+      post('/api/v1/channels/$id/posts', body: values);
+
+  Future<Map<String, dynamic>> createTopic(String parentPath, Map<String, dynamic> values) =>
+      post('$parentPath/topics', body: values);
+  Future<Map<String, dynamic>> topicMessages(String id) => get('/api/v1/topics/$id/messages');
+  Future<Map<String, dynamic>> sendTopicMessage(String id, Map<String, dynamic> values) =>
+      post('/api/v1/topics/$id/messages', body: values);
+
+  Future<Map<String, dynamic>> createPoll(String conversationId, Map<String, dynamic> values) =>
+      post('/api/v1/conversations/$conversationId/polls', body: values);
+  Future<Map<String, dynamic>> poll(String id) => get('/api/v1/polls/$id');
+  Future<Map<String, dynamic>> votePoll(String id, List<String> optionIds) =>
+      post('/api/v1/polls/$id/vote', body: {'option_ids': optionIds});
+
+  Future<Map<String, dynamic>> stories() => get('/api/v1/stories');
+  Future<Map<String, dynamic>> createStory(Map<String, dynamic> values) =>
+      post('/api/v1/stories', body: values);
+  Future<Map<String, dynamic>> viewStory(String id) => post('/api/v1/stories/$id/view');
+  Future<Map<String, dynamic>> deleteStory(String id) => delete('/api/v1/stories/$id');
+
+  Future<Map<String, dynamic>> savedMessages() => get('/api/v1/saved-messages');
+  Future<Map<String, dynamic>> saveMessage(String id) => post('/api/v1/messages/$id/save');
+  Future<Map<String, dynamic>> unsaveMessage(String id) => delete('/api/v1/messages/$id/save');
+
+  Future<Map<String, dynamic>> chatPreferences() => get('/api/v1/chat-preferences');
+  Future<Map<String, dynamic>> updateConversationPreferences(String id, Map<String, dynamic> values) =>
+      post('/api/v1/conversations/$id/preferences', body: values);
+  Future<Map<String, dynamic>> chatFolders() => get('/api/v1/chat-folders');
+  Future<Map<String, dynamic>> createChatFolder(String name) =>
+      post('/api/v1/chat-folders', body: {'name': name});
+  Future<Map<String, dynamic>> deleteChatFolder(String id) => delete('/api/v1/chat-folders/$id');
+  Future<Map<String, dynamic>> addChatFolderItem(String folderId, String conversationId) =>
+      post('/api/v1/chat-folders/$folderId/items', body: {'conversation_id': conversationId});
+  Future<Map<String, dynamic>> removeChatFolderItem(String folderId, String conversationId) =>
+      delete('/api/v1/chat-folders/$folderId/items/$conversationId');
+
+  Future<Map<String, dynamic>> createCall(String conversationId, {required String type}) =>
+      post('/api/v1/calls', body: {'conversation_id': conversationId, 'type': type});
+  Future<Map<String, dynamic>> activeCall(String conversationId) =>
+      get('/api/v1/calls/active', query: {'conversation_id': conversationId});
+  Future<Map<String, dynamic>> call(String id) => get('/api/v1/calls/$id');
+  Future<Map<String, dynamic>> joinCall(String id) => post('/api/v1/calls/$id/join');
+  Future<Map<String, dynamic>> declineCall(String id) => post('/api/v1/calls/$id/decline');
+  Future<Map<String, dynamic>> endCall(String id) => post('/api/v1/calls/$id/end');
+  Future<Map<String, dynamic>> sendCallSignal(String id, Map<String, dynamic> values) =>
+      post('/api/v1/calls/$id/signal', body: values);
+  Future<Map<String, dynamic>> callSignals(String id, {int after = 0}) =>
+      get('/api/v1/calls/$id/signals', query: {'after': '$after'});
 
   Future<void> logout() async {
     await post('/api/v1/auth/logout');
