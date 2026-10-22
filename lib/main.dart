@@ -150,11 +150,13 @@ class _AuthScreenState extends State<AuthScreen> {
           firstName: _first.text,
           lastName: _last.text,
         );
-        await widget.api.resendPhoneCode(_phone.text);
+        final smsSent = result['phone_verification_sent'] == true;
         if (mounted) setState(() {
           _needsPhoneCode = true;
-          _message = 'Аккаунт создан. Введи код из SMS; код подтверждения почты придёт отдельно.';
-          _error = false;
+          _message = smsSent
+              ? 'Аккаунт создан. Введи код из SMS; код подтверждения почты придёт отдельно.'
+              : 'Аккаунт создан, но сервер не подтвердил отправку SMS. Можно запросить код повторно через 60 секунд.';
+          _error = !smsSent;
         });
         return;
       }
@@ -248,6 +250,20 @@ class _AuthScreenState extends State<AuthScreen> {
                           TextFormField(controller: _code, keyboardType: TextInputType.number, maxLength: 6, decoration: const InputDecoration(hintText: '123456', counterText: ''), validator: (v) => (v == null || !RegExp(r'^\d{6}$').hasMatch(v)) ? 'Введи 6 цифр' : null),
                           const SizedBox(height: 14),
                           FilledButton(onPressed: _busy ? null : (_needsPhoneCode ? _verifyPhone : _verifyEmail), child: _busy ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Подтвердить')),
+                          if (_needsPhoneCode) TextButton(
+                            onPressed: _busy ? null : () => _run(() async {
+                              await widget.api.resendPhoneCode(_phone.text);
+                              if (mounted) setState(() { _message = 'Если номер зарегистрирован, новый SMS-код отправлен.'; _error = false; });
+                            }),
+                            child: const Text('Запросить SMS-код повторно'),
+                          ),
+                          if (_needsEmailCode) TextButton(
+                            onPressed: _busy ? null : () => _run(() async {
+                              await widget.api.resendEmailCode(_email.text);
+                              if (mounted) setState(() { _message = 'Если адрес зарегистрирован и не подтверждён, письмо отправлено.'; _error = false; });
+                            }),
+                            child: const Text('Отправить письмо повторно'),
+                          ),
                         ] else ...[
                           if (_register) ...[
                             _field(_first, 'Имя', icon: Icons.person_outline, validator: (v) => (v == null || v.trim().isEmpty) ? 'Имя обязательно' : null),
