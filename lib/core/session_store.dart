@@ -21,9 +21,7 @@ class SessionStore {
 
   Future<String> deviceKey() async {
     final existing = await _storage.read(key: _deviceKey);
-    if (existing != null && RegExp(r'^[a-f0-9]{64}
-}
-).hasMatch(existing)) return existing;
+    if (existing != null && existing.length == 64 && existing.split('').every((ch) => '0123456789abcdef'.contains(ch))) return existing;
     final random = Random.secure();
     final value = List.generate(32, (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
     await _storage.write(key: _deviceKey, value: value);
