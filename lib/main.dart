@@ -943,6 +943,7 @@ class _CommunitiesPageState extends State<CommunitiesPage> with SingleTickerProv
   @override
   void initState() {
     super.initState();
+    _tabs.addListener(() { if (mounted) setState(() {}); });
     _groups = widget.api.groups();
     _channels = widget.api.channels();
   }
