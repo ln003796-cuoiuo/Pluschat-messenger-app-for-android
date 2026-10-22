@@ -53,6 +53,7 @@ class _AppGateState extends State<AppGate> {
   final _api = ApiClient();
   bool _checking = true;
   bool _signedIn = false;
+  bool _needsProfileCompletion = false;
 
   @override
   void initState() {
@@ -66,6 +67,13 @@ class _AppGateState extends State<AppGate> {
       try {
         await _api.me();
         _signedIn = true;
+      } on ApiException catch (e) {
+        if (e.code == 'profile_completion_required') {
+          _signedIn = true;
+          _needsProfileCompletion = true;
+        } else {
+          await SessionStore.instance.clear();
+        }
       } catch (_) {
         await SessionStore.instance.clear();
       }
@@ -73,14 +81,29 @@ class _AppGateState extends State<AppGate> {
     if (mounted) setState(() => _checking = false);
   }
 
-  void _authenticated() {
-    setState(() => _signedIn = true);
+  Future<void> _authenticated() async {
+    var needsProfile = false;
+    try {
+      await _api.me();
+    } on ApiException catch (e) {
+      needsProfile = e.code == 'profile_completion_required';
+      if (!needsProfile) rethrow;
+    }
+    if (mounted) setState(() {
+      _signedIn = true;
+      _needsProfileCompletion = needsProfile;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     if (_checking) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (_signedIn && _needsProfileCompletion) {
+      return ProfileCompletionScreen(api: _api, onComplete: () {
+        setState(() => _needsProfileCompletion = false);
+      });
     }
     return _signedIn
         ? MessengerShell(api: _api, onLogout: () async {
@@ -94,7 +117,7 @@ class _AppGateState extends State<AppGate> {
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key, required this.api, required this.onAuthenticated});
   final ApiClient api;
-  final VoidCallback onAuthenticated;
+  final Future<void> Function() onAuthenticated;
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
@@ -199,7 +222,7 @@ class _AuthScreenState extends State<AuthScreen> {
         });
         return;
       }
-      widget.onAuthenticated();
+      await widget.onAuthenticated();
     });
   }
 
@@ -220,7 +243,7 @@ class _AuthScreenState extends State<AuthScreen> {
       final challenge = _challengeId;
       if (challenge == null) throw const ApiException('Запрос проверки 2FA истёк. Войди заново.');
       await widget.api.verifyTwoFactor(challengeId: challenge, code: _code.text);
-      widget.onAuthenticated();
+      await widget.onAuthenticated();
     });
   }
 
@@ -243,6 +266,7 @@ class _AuthScreenState extends State<AuthScreen> {
       if (mounted) setState(() {
         _needsEmailCode = false;
         _register = false;
+        _login.text = _email.text;
         _message = 'Почта подтверждена. Теперь можно войти и завершить настройку защиты.';
         _error = false;
       });
@@ -624,4 +648,62 @@ class FeaturePage extends StatelessWidget {
 
 void _notice(BuildContext context, String text) {
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), behavior: SnackBarBehavior.floating));
+}
+
+
+class ProfileCompletionScreen extends StatefulWidget {
+  const ProfileCompletionScreen({super.key, required this.api, required this.onComplete});
+  final ApiClient api;
+  final VoidCallback onComplete;
+  @override
+  State<ProfileCompletionScreen> createState() => _ProfileCompletionScreenState();
+}
+
+class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
+  final _username = TextEditingController();
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() { _username.dispose(); super.dispose(); }
+
+  Future<void> _save() async {
+    final username = _username.text.trim();
+    if (!RegExp(r'^[A-Za-z0-9_]{3,32}$').hasMatch(username)) {
+      setState(() => _error = 'Никнейм: 3–32 латинских буквы, цифры или подчёркивания.');
+      return;
+    }
+    setState(() { _busy = true; _error = null; });
+    try {
+      await widget.api.completeProfile(username: username);
+      widget.onComplete();
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Заверши профиль')),
+    body: Center(child: SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 440), child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Icon(Icons.verified_user_rounded, size: 64, color: _blue),
+          const SizedBox(height: 18),
+          const Text('Выбери свой никнейм', textAlign: TextAlign.center, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: _ink)),
+          const SizedBox(height: 10),
+          const Text('Он будет виден другим пользователям и поможет найти тебя в Pluschat.', textAlign: TextAlign.center, style: TextStyle(color: _muted, height: 1.4)),
+          const SizedBox(height: 24),
+          TextField(controller: _username, autocorrect: false, decoration: const InputDecoration(prefixText: '@', hintText: 'nickname')),
+          const SizedBox(height: 16),
+          FilledButton(onPressed: _busy ? null : _save, child: _busy ? const CircularProgressIndicator() : const Text('Продолжить')),
+          if (_error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_error!, style: const TextStyle(color: Color(0xFFB42318)))),
+        ],
+      )),
+    )),
+  );
 }
