@@ -222,7 +222,7 @@ class _AuthScreenState extends State<AuthScreen> {
         });
         return;
       }
-      await await widget.onAuthenticated();
+      await widget.onAuthenticated();
     });
   }
 
@@ -243,7 +243,7 @@ class _AuthScreenState extends State<AuthScreen> {
       final challenge = _challengeId;
       if (challenge == null) throw const ApiException('Запрос проверки 2FA истёк. Войди заново.');
       await widget.api.verifyTwoFactor(challengeId: challenge, code: _code.text);
-      await await widget.onAuthenticated();
+      await widget.onAuthenticated();
     });
   }
 
