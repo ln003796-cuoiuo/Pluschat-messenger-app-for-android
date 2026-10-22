@@ -316,6 +316,19 @@ public class MainActivity extends Activity {
         });
         body.addView(button("Завершить остальные сессии", () -> request("POST", "auth/sessions/revoke-others",
                 new JSONObject(), true, (result, error) -> message("Остальные сессии отозваны."))));
+        body.addView(button("Завершить ВСЕ сеансы", () -> new android.app.AlertDialog.Builder(this)
+                .setTitle("Выйти на всех устройствах?")
+                .setMessage("Все активные сеансы, включая этот телефон, будут завершены. Для продолжения потребуется войти снова.")
+                .setNegativeButton("Отмена", (dialog, which) -> dialog.dismiss())
+                .setPositiveButton("Завершить все", (dialog, which) -> request("POST", "auth/sessions/revoke-all",
+                        new JSONObject(), true, (result, error) -> {
+                            if (result.optBoolean("logged_out_everywhere", false)) {
+                                SessionStore.clear(this);
+                                message("Все сеансы завершены.");
+                                showPage("auth");
+                            }
+                        }))
+                .show()));
         body.addView(button("Назад", () -> showPage("settings")));
     }
 
