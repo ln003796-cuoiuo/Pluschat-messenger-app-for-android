@@ -8,7 +8,7 @@
     <application
         android:label="Плюс Чат"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@drawable/ic_pluschat"
         android:usesCleartextTraffic="false">
         <activity
             android:name=".MainActivity"
