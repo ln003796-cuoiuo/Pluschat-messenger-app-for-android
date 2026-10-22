@@ -203,13 +203,13 @@ public class MainActivity extends Activity {
         header.setBackground(shape(lightMode ? Color.WHITE : 0xff0f1219, 0));
         ImageView logo = new ImageView(this);
         logo.setImageResource(R.drawable.pluschat_logo);
-        logo.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
         LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(44), dp(44));
         logoParams.setMargins(0, 0, dp(12), 0);
         header.addView(logo, logoParams);
         LinearLayout brandText = new LinearLayout(this);
         brandText.setOrientation(LinearLayout.VERTICAL);
-        TextView brand = text("Pluschat", 21, true, lightMode ? Color.BLACK : white);
+        TextView brand = text("Плюс Чат", 21, true, lightMode ? Color.BLACK : white);
         TextView tagline = text("Твои люди. Твои разговоры.", 12, false, muted);
         brandText.addView(brand);
         brandText.addView(tagline);
@@ -234,7 +234,7 @@ public class MainActivity extends Activity {
             nav.setBackgroundColor(lightMode ? Color.WHITE : 0xff0f1219);
             nav.addView(navItem("⌂", "Чаты", "home", target.equals("home") || target.equals("chat") || target.equals("search")));
             nav.addView(navItem("♙", "Контакты", "contacts", target.equals("contacts")));
-            nav.addView(navItem("◉", "Сообщества", "communities", target.equals("communities")));
+            nav.addView(navItem("◉", "Уведомления", "notifications", target.equals("notifications")));
             nav.addView(navItem("☺", "Профиль", "profile", target.equals("profile") || target.equals("settings") || target.equals("permissions") || target.equals("privacy") || target.equals("appearance") || target.equals("chat_info") || target.startsWith("twofa_")));
             root.addView(nav, new LinearLayout.LayoutParams(-1, dp(72)));
         }
@@ -310,7 +310,7 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams markParams = new LinearLayout.LayoutParams(dp(118), dp(118));
         markParams.bottomMargin = dp(26);
         body.addView(mark, markParams);
-        TextView brand = text("Pluschat", 34, true, white);
+        TextView brand = text("Плюс Чат", 34, true, white);
         brand.setGravity(Gravity.CENTER);
         body.addView(brand, new LinearLayout.LayoutParams(-1, dp(44)));
         TextView intro = text("Общение без лишнего.\nЛюди, чаты и ваши правила.", 15, false, muted);
