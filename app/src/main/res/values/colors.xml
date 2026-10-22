@@ -1,7 +1,0 @@
-<resources>
-    <color name="pluschat_background">#0B0D12</color>
-    <color name="pluschat_surface">#131720</color>
-    <color name="pluschat_accent">#8875FF</color>
-    <color name="pluschat_text">#FFFFFF</color>
-    <color name="pluschat_muted">#98A2B5</color>
-</resources>
