@@ -199,7 +199,7 @@ class ApiClient {
   Future<Map<String, dynamic>> sendFriendRequest(String userId) =>
       post('/api/v1/friends/requests', body: {'user_id': userId});
   Future<Map<String, dynamic>> respondFriendRequest(String requestId, {required bool accept}) =>
-      post('/api/v1/friends/requests/$requestId/${accept ? 'accept' : 'decline'}');
+      post("/api/v1/friends/requests/$requestId/${accept ? 'accept' : 'decline'}");
   Future<Map<String, dynamic>> removeFriend(String userId) =>
       delete('/api/v1/friends/$userId');
 
