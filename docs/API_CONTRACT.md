@@ -67,3 +67,10 @@ The Android client connects directly to the main PHP host over HTTPS. The APK mu
 - Use pagination for history and lists; deduplicate messages using client_message_id.
 - Use push notifications when server-side push is configured; while app is open, refresh messages using polling until a realtime service exists.
 - This document is the integration contract. The PHP API currently implements email-code registration, password login, token refresh/revocation, profile read/update, user search, direct chat creation, and text-message history/send. Import `database/schema.sql`, deploy the PHP gateway, and configure `config.php` from `config.example.php`. Email delivery must work through PHP `mail()` on the host. SMS, avatar uploads, push delivery, and 2FA still require provider/endpoint setup.
+
+
+## Message pins
+
+- `GET /api/v1/conversations/{conversationId}/pins` returns up to 100 pinned encrypted messages for a conversation the authenticated user belongs to. Message bodies remain ciphertext; clients must decrypt them locally.
+- `POST /api/v1/messages/{messageId}/pin` with JSON `{"pinned":true}` pins an encrypted message in its conversation. Send `{"pinned":false}` to unpin it. The caller must be a verified member of that conversation.
+- The server requires migration `010_message_pins.sql`; run `php database/migrate.php` from the server project root after configuration.
