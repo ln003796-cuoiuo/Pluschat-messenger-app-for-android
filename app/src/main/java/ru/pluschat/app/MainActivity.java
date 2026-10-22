@@ -134,9 +134,17 @@ public class MainActivity extends Activity {
 
     private int dp(float value) { return (int) (value * getResources().getDisplayMetrics().density + 0.5f); }
     private GradientDrawable shape(int color, int radius) {
+        if (lightMode) {
+            if (color == bg) color = 0xfff5f4f9;
+            else if (color == panel || color == 0xff131720 || color == 0xff151925) color = 0xffffffff;
+            else if (color == 0xff171b24) color = 0xfff0eef7;
+            else if (color == 0xff0f1219) color = 0xffffffff;
+            else if (color == 0xff292443) color = 0xffe9e3ff;
+        }
         GradientDrawable d = new GradientDrawable(); d.setColor(color); d.setCornerRadius(dp(radius)); return d;
     }
     private TextView text(String value, int size, boolean bold, int color) {
+        if (lightMode && (color == white || color == Color.WHITE || color == 0xfff5f7fb || color == 0xffe2dcff || color == 0xffd7d0ff)) color = 0xff282438;
         TextView t = new TextView(this); t.setText(value); t.setTextSize(size); t.setTextColor(color);
         if (bold) t.setTypeface(Typeface.DEFAULT, Typeface.BOLD); t.setGravity(Gravity.CENTER_VERTICAL); return t;
     }
@@ -800,7 +808,7 @@ public class MainActivity extends Activity {
         body.setPadding(0, 0, 0, 0);
         LinearLayout chatHeader = row();
         chatHeader.setPadding(dp(14), dp(10), dp(14), dp(10));
-        chatHeader.setBackgroundColor(0xff0f1219);
+        chatHeader.setBackgroundColor(lightMode ? Color.WHITE : 0xff0f1219);
         TextView back = text("‹", 32, false, white);
         back.setGravity(Gravity.CENTER);
         chatHeader.addView(back, new LinearLayout.LayoutParams(dp(34), dp(48)));
@@ -840,7 +848,7 @@ public class MainActivity extends Activity {
 
         LinearLayout composer = row();
         composer.setPadding(dp(12), dp(8), dp(12), dp(8));
-        composer.setBackgroundColor(0xff0f1219);
+        composer.setBackgroundColor(lightMode ? Color.WHITE : 0xff0f1219);
         TextView attach = text("+", 26, false, 0xffb9adff);
         attach.setGravity(Gravity.CENTER);
         composer.addView(attach, new LinearLayout.LayoutParams(dp(42), dp(48)));
