@@ -812,7 +812,15 @@ public class MainActivity extends Activity {
         stickers.setOnClickListener(v -> showStickerPicker());
         messageField = input("Сообщение…", false);
         messageField.setSingleLine(true);
+        messageField.setText(SessionStore.cryptoGet(this, "draft_" + currentChatId));
         messageField.setBackground(shape(0xff171b24, 22));
+        messageField.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence value, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence value, int start, int before, int count) {
+                SessionStore.cryptoPut(MainActivity.this, "draft_" + currentChatId, value.toString());
+            }
+            @Override public void afterTextChanged(android.text.Editable value) {}
+        });
         messageField.setPadding(dp(15), dp(8), dp(15), dp(8));
         LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(0, dp(48), 1);
         inputParams.setMargins(dp(4), 0, dp(8), 0);
@@ -1011,6 +1019,7 @@ public class MainActivity extends Activity {
                         return;
                     }
                     messageField.setText("");
+                    SessionStore.cryptoRemove(MainActivity.this, "draft_" + currentChatId);
                     refreshChatHistory(history);
                 });
             } catch (Exception cryptoError) {
