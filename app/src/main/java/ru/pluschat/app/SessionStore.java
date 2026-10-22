@@ -57,6 +57,14 @@ public final class SessionStore {
         catch (Exception ignored) {}
     }
 
+    public static boolean isChatHidden(Context context, String chatId) {
+        return "1".equals(cryptoGet(context, "hidden_chat_" + chatId));
+    }
+    public static void setChatHidden(Context context, String chatId, boolean hidden) throws Exception {
+        if (hidden) cryptoPut(context, "hidden_chat_" + chatId, "1");
+        else cryptoRemove(context, "hidden_chat_" + chatId);
+    }
+
     public static void cryptoRemove(Context context, String key) {
         try { prefs(context).edit().remove("crypto_" + key).apply(); }
         catch (Exception ignored) {}
