@@ -29,7 +29,7 @@ The Android client connects directly to the main PHP host over HTTPS. The APK mu
 - `GET me`, `PATCH me`, `POST me/avatar` (multipart image upload).
 - `GET users/search?q=<query>`, `GET users/{user_id}`.
 - `GET contacts`, `POST contacts`, `DELETE contacts/{user_id}`.
-- `GET devices`, `DELETE devices/{device_id}`; list/revoke sessions.
+- `GET devices`, `POST devices/{device_id}/revoke`, `POST auth/sessions/revoke-others`, `POST auth/sessions/revoke-all`; list/revoke sessions. `revoke-all` invalidates every token including the current one.
 - `GET me/privacy`, `PATCH me/privacy`; visibility values for phone, email, birth date, avatar, online status, last seen, who can message/add to groups.
 - `GET users/blocked`, `POST users/{user_id}/block`, `DELETE users/{user_id}/block`.
 - `GET notifications`, `POST notifications/{id}/read`, `POST notifications/read-all`.
