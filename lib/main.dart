@@ -950,6 +950,44 @@ class _CommunitiesPageState extends State<CommunitiesPage> with SingleTickerProv
   void dispose() { _tabs.dispose(); super.dispose(); }
   void _reload() => setState(() { _groups = widget.api.groups(); _channels = widget.api.channels(); });
 
+  Future<void> _createCommunity() async {
+    final isGroup = _tabs.index == 0;
+    final titleController = TextEditingController();
+    final descriptionController = TextEditingController();
+    final form = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(isGroup ? 'Создать группу' : 'Создать канал'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: titleController, maxLength: 120, decoration: const InputDecoration(hintText: 'Название')),
+          const SizedBox(height: 10),
+          TextField(controller: descriptionController, maxLines: 3, maxLength: 1000, decoration: const InputDecoration(hintText: 'Описание (необязательно)')),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Отмена')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, {
+            'title': titleController.text.trim(),
+            'description': descriptionController.text.trim(),
+          }), child: const Text('Создать')),
+        ],
+      ),
+    );
+    titleController.dispose();
+    descriptionController.dispose();
+    if (form == null || form['title']!.isEmpty || !mounted) return;
+    try {
+      if (isGroup) {
+        await widget.api.createGroup({...form, 'is_private': false, 'topics_enabled': true});
+      } else {
+        await widget.api.createChannel({...form, 'is_public': true, 'topics_enabled': true});
+      }
+      _reload();
+      if (mounted) _notice(context, isGroup ? 'Группа создана.' : 'Канал создан.');
+    } catch (e) {
+      if (mounted) _notice(context, e.toString());
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
@@ -961,6 +999,11 @@ class _CommunitiesPageState extends State<CommunitiesPage> with SingleTickerProv
       _communityList(_groups, 'groups', Icons.groups_rounded, join: true),
       _communityList(_channels, 'channels', Icons.campaign_rounded, join: false),
     ]),
+    floatingActionButton: FloatingActionButton.extended(
+      onPressed: _createCommunity,
+      icon: const Icon(Icons.add_rounded),
+      label: Text(_tabs.index == 0 ? 'Создать группу' : 'Создать канал'),
+    ),
   );
 
   Widget _communityList(Future<Map<String, dynamic>> future, String key, IconData icon, {required bool join}) =>
