@@ -197,6 +197,27 @@ class ApiClient {
   Future<Map<String, dynamic>> createDirectConversation(String userId) =>
       post('/api/v1/conversations', body: {'user_id': userId});
 
+  Future<Map<String, dynamic>> blockUser(String userId) =>
+      post('/api/v1/users/$userId/block');
+  Future<Map<String, dynamic>> unblockUser(String userId) =>
+      post('/api/v1/users/$userId/unblock');
+  Future<Map<String, dynamic>> report(Map<String, dynamic> values) =>
+      post('/api/v1/reports', body: values);
+  Future<Map<String, dynamic>> adminReports() => get('/api/v1/admin/reports');
+
+  Future<Map<String, dynamic>> sendMessage(String conversationId, String encryptedEnvelope) =>
+      post('/api/v1/conversations/$conversationId/messages', body: {'body': encryptedEnvelope});
+  Future<Map<String, dynamic>> editMessage(String messageId, String encryptedEnvelope) =>
+      post('/api/v1/messages/$messageId/edit', body: {'body': encryptedEnvelope});
+  Future<Map<String, dynamic>> deleteMessage(String messageId, {required bool forEveryone}) =>
+      post('/api/v1/messages/$messageId/delete', body: {'for_everyone': forEveryone});
+  Future<Map<String, dynamic>> messageReactions(String messageId) =>
+      get('/api/v1/messages/$messageId/reactions');
+  Future<Map<String, dynamic>> addReaction(String messageId, String reaction) =>
+      post('/api/v1/messages/$messageId/reactions', body: {'reaction': reaction});
+  Future<Map<String, dynamic>> removeReaction(String messageId, String reaction) =>
+      post('/api/v1/messages/$messageId/reactions/remove', body: {'reaction': reaction});
+
   Future<Map<String, dynamic>> conversations() => get('/api/v1/conversations');
   Future<Map<String, dynamic>> messages(String id) =>
       get('/api/v1/conversations/$id/messages');
