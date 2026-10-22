@@ -177,7 +177,7 @@ class ApiClient {
       get('/api/v1/search', query: {'q': query.trim()});
 
   Future<Map<String, dynamic>> createDirectConversation(String userId) =>
-      post('/api/v1/conversations', body: {'recipient_id': userId});
+      post('/api/v1/conversations', body: {'user_id': userId});
 
   Future<Map<String, dynamic>> conversations() => get('/api/v1/conversations');
   Future<Map<String, dynamic>> messages(String id) =>
