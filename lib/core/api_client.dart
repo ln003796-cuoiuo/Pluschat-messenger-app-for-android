@@ -122,8 +122,36 @@ class ApiClient {
 
   Future<Map<String, dynamic>> login({
     required String login, required String password,
-  }) => post('/api/v1/auth/login', authenticated: false,
-      body: {'login': login.trim(), 'password': password});
+  }) async {
+    final deviceKey = await SessionStore.instance.deviceKey();
+    return post('/api/v1/auth/login', authenticated: false, body: {
+      'login': login.trim(),
+      'password': password,
+      'device_key': deviceKey,
+      'device_name': 'Pluschat Android',
+      'platform': 'android',
+    });
+  }
+
+  Future<Map<String, dynamic>> setupTwoFactor() =>
+      post('/api/v1/auth/2fa/setup');
+
+  Future<Map<String, dynamic>> confirmTwoFactor({
+    required String setupId, required String code,
+  }) => post('/api/v1/auth/2fa/confirm',
+      body: {'setup_id': setupId, 'code': code});
+
+  Future<Map<String, dynamic>> verifyTwoFactor({
+    required String challengeId, required String code,
+  }) async {
+    final result = await post('/api/v1/auth/2fa/verify', authenticated: false,
+        body: {'challenge_id': challengeId, 'code': code});
+    final token = result['token']?.toString();
+    if (token != null && token.isNotEmpty) {
+      await SessionStore.instance.saveToken(token);
+    }
+    return result;
+  }
 
   Future<Map<String, dynamic>> completeProfile({
     required String username, String firstName = '', String lastName = '',
