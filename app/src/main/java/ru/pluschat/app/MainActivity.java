@@ -976,6 +976,16 @@ public class MainActivity extends Activity {
                                     attachmentPeerKey.optString("key_id"), attachmentPeerKey.optString("signed_prekey")));
                         }
                     }
+                    String messageIdForPin = m.optString("id", "");
+                    TextView pinAction = text("📌 Закрепить", 11, true, 0xffc6bdff);
+                    pinAction.setPadding(0, dp(5), 0, 0);
+                    pinAction.setOnClickListener(v -> request("POST", "messages/" + android.net.Uri.encode(messageIdForPin) + "/pin",
+                        ApiClient.json("pinned", true), true, (pinResult, pinError) -> {
+                            if (pinError != null || !pinResult.optBoolean("ok", false)) {
+                                message("Не удалось закрепить сообщение.");
+                            } else message("Сообщение закреплено в переписке.");
+                        }));
+                    bubble.addView(pinAction);
                     LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(-2,-2);
                     params.setMargins(0,dp(4),0,dp(4));
                     params.gravity=mine ? Gravity.RIGHT : Gravity.LEFT;
