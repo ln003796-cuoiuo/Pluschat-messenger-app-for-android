@@ -264,6 +264,7 @@ public class MainActivity extends Activity {
         else if (target.equals("profile")) profileScreen();
         else if (target.equals("settings")) settingsScreen();
         else if (target.equals("hidden_chats")) hiddenChatsScreen();
+        else if (target.equals("saved_messages")) savedMessagesScreen();
         else if (target.equals("privacy")) privacyScreen();
         else if (target.equals("appearance")) appearanceScreen();
         else if (target.equals("chat_info")) chatInfoScreen();
@@ -1021,6 +1022,14 @@ public class MainActivity extends Activity {
                             } else message("Сообщение закреплено в переписке.");
                         }));
                     bubble.addView(pinAction);
+                    TextView saveAction = text("☆ В избранное", 11, true, 0xffc6bdff);
+                    saveAction.setPadding(0, dp(5), 0, 0);
+                    saveAction.setOnClickListener(v -> request("POST", "messages/" + android.net.Uri.encode(messageIdForPin) + "/save",
+                        new JSONObject(), true, (saveResult, saveError) -> {
+                            if (saveError != null || !saveResult.optBoolean("ok", false)) message("Не удалось сохранить сообщение в избранное.");
+                            else message("Сообщение сохранено в избранное.");
+                        }));
+                    bubble.addView(saveAction);
                     LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(-2,-2);
                     params.setMargins(0,dp(4),0,dp(4));
                     params.gravity=mine ? Gravity.RIGHT : Gravity.LEFT;
@@ -1234,6 +1243,7 @@ public class MainActivity extends Activity {
             logout();
         }));
         body.addView(button("Внешний вид  ›", () -> showPage("appearance")));
+        body.addView(button("Избранное", () -> showPage("saved_messages")));
         body.addView(button("Скрытые чаты", () -> showPage("hidden_chats")));
         body.addView(button("Приватность и безопасность  ›", () -> showPage("privacy")));
         body.addView(button("Уведомления", () -> showPage("notifications")));
@@ -1263,6 +1273,61 @@ public class MainActivity extends Activity {
         body.addView(button("Разрешения Android", () -> showPage("permissions")));
         body.addView(button("Выйти из аккаунта", this::logout));
         body.addView(button("Назад", () -> showPage("home")));
+    }
+
+    private void savedMessagesScreen() {
+        title("Избранное");
+        subtitle("Сохранённые сообщения доступны в твоём аккаунте на этом устройстве и других устройствах.");
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        body.addView(list);
+        request("GET", "saved-messages", null, true, (data, error) -> {
+            if (error != null) return;
+            JSONArray saved = data.optJSONArray("messages");
+            if (saved == null || saved.length() == 0) {
+                list.addView(text("Пока нет сохранённых сообщений. Открой переписку и нажми «В избранное» под сообщением.", 14, false, muted));
+                return;
+            }
+            for (int i = 0; i < saved.length(); i++) {
+                JSONObject item = saved.optJSONObject(i);
+                if (item == null) continue;
+                String messageId = item.optString("id", "");
+                String conversationId = item.optString("conversation_id", "");
+                LinearLayout card = new LinearLayout(this);
+                card.setOrientation(LinearLayout.VERTICAL);
+                card.setPadding(dp(14), dp(12), dp(14), dp(12));
+                card.setBackground(shape(0xff171b24, 16));
+                LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(-1, -2);
+                cardParams.setMargins(0, dp(4), 0, dp(4));
+                card.addView(text("Сообщение #" + messageId, 14, true, white));
+                card.addView(text("Сохранено: " + item.optString("saved_at", "—"), 11, false, muted));
+                card.addView(button("Открыть переписку", () -> request("GET", "conversations", null, true, (chatsData, chatsError) -> {
+                    JSONArray conversations = chatsData.optJSONArray("conversations");
+                    if (conversations == null) { message("Не удалось найти переписку."); return; }
+                    for (int j = 0; j < conversations.length(); j++) {
+                        JSONObject conversation = conversations.optJSONObject(j);
+                        if (conversation == null || !conversationId.equals(conversation.optString("id"))) continue;
+                        JSONObject peer = conversation.optJSONObject("other_user");
+                        if (peer == null) { message("Не удалось определить собеседника."); return; }
+                        currentChatId = conversationId;
+                        currentPeerId = peer.optString("id", "");
+                        currentChatTitle = (peer.optString("first_name", "") + " " + peer.optString("last_name", "")).trim();
+                        if (currentChatTitle.isEmpty()) currentChatTitle = "@" + peer.optString("username", "user");
+                        showPage("chat");
+                        return;
+                    }
+                    message("Переписка больше недоступна.");
+                })));
+                card.addView(button("Убрать из избранного", () -> request("DELETE", "messages/" + messageId + "/save", null, true, (removeData, removeError) -> {
+                    if (removeData.optBoolean("ok", false)) {
+                        message("Удалено из избранного.");
+                        showPage("saved_messages");
+                    } else message("Не удалось убрать сообщение.");
+                })));
+                list.addView(card, cardParams);
+            }
+        });
+        body.addView(button("Назад к настройкам", () -> showPage("settings")));
     }
 
     private void hiddenChatsScreen() {
