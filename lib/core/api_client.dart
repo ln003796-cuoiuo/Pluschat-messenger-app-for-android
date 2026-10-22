@@ -90,7 +90,6 @@ class ApiClient {
     switch (error?.toString()) {
       case 'invalid_credentials': return 'Неверный логин или пароль.';
       case 'email_not_verified': return 'Сначала подтверди электронную почту.';
-      case 'phone_not_verified': return 'Сначала подтверди номер телефона.';
       case 'profile_completion_required': return 'Нужно завершить настройку профиля.';
       case 'endpoint_not_found': return 'Этот метод пока не доступен на сервере.';
       default: return null;
@@ -101,10 +100,10 @@ class ApiClient {
       get('/api/v1/health', authenticated: false);
 
   Future<Map<String, dynamic>> register({
-    required String email, required String phone, required String password,
+    required String email, required String password,
     required String firstName, String lastName = '', String birthDate = '',
   }) => post('/api/v1/auth/register', authenticated: false, body: {
-    'email': email.trim(), 'phone': phone.trim(), 'password': password,
+    'email': email.trim(), 'password': password,
     'first_name': firstName.trim(),
     if (lastName.trim().isNotEmpty) 'last_name': lastName.trim(),
     if (birthDate.isNotEmpty) 'birth_date': birthDate,
@@ -118,15 +117,6 @@ class ApiClient {
   Future<Map<String, dynamic>> resendEmailCode(String email) =>
       post('/api/v1/auth/resend-verification', authenticated: false,
           body: {'email': email.trim()});
-
-  Future<Map<String, dynamic>> resendPhoneCode(String phone) =>
-      post('/api/v1/auth/phone/resend', authenticated: false,
-          body: {'phone': phone.trim()});
-
-  Future<Map<String, dynamic>> verifyPhone({
-    required String phone, required String code,
-  }) => post('/api/v1/auth/phone/verify', authenticated: false,
-      body: {'phone': phone.trim(), 'code': code.trim()});
 
   Future<Map<String, dynamic>> login({
     required String login, required String password,
