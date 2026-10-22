@@ -561,8 +561,14 @@ public class MainActivity extends Activity {
     private boolean saveSession(JSONObject data) {
         String access=data.optString("access_token", data.optString("token","")), refresh=data.optString("refresh_token","");
         if(access.isEmpty()){message("Сервер не вернул токен сессии. Проверь контракт API.");return false;}
-        try { SessionStore.save(this,access,refresh); return true; }
-        catch(Exception e){message("Не удалось безопасно сохранить сессию.");return false;}
+        try {
+            SessionStore.save(this,access,refresh);
+            JSONObject user = data.optJSONObject("user");
+            String label = user == null ? data.optString("email", "Аккаунт") :
+                user.optString("email", user.optString("username", "Аккаунт"));
+            SessionStore.rememberAccount(this, access, refresh, label);
+            return true;
+        } catch(Exception e){message("Не удалось безопасно сохранить сессию.");return false;}
     }
 
     private void twoFactorSetupScreen() {
@@ -1192,6 +1198,10 @@ public class MainActivity extends Activity {
         account.addView(info, new LinearLayout.LayoutParams(0, -2, 1));
         account.setOnClickListener(v -> showPage("profile"));
         body.addView(account);
+        body.addView(button("Сменить аккаунт", this::showAccountChooser));
+        body.addView(button("Добавить аккаунт", () -> {
+            logout();
+        }));
         body.addView(button("Внешний вид  ›", () -> showPage("appearance")));
         body.addView(button("Скрытые чаты", () -> showPage("hidden_chats")));
         body.addView(button("Приватность и безопасность  ›", () -> showPage("privacy")));
@@ -1254,6 +1264,35 @@ public class MainActivity extends Activity {
             if (!found) list.addView(text("Нет скрытых чатов.", 14, false, muted));
         });
         body.addView(button("Назад к настройкам", () -> showPage("settings")));
+    }
+
+    private void showAccountChooser() {
+        org.json.JSONArray accounts = SessionStore.accounts(this);
+        if (accounts.length() == 0) { message("Сохранённых аккаунтов пока нет."); return; }
+        java.util.ArrayList<String> labels = new java.util.ArrayList<>();
+        java.util.ArrayList<String> keys = new java.util.ArrayList<>();
+        for (int i = 0; i < accounts.length(); i++) {
+            org.json.JSONObject item = accounts.optJSONObject(i);
+            if (item == null) continue;
+            keys.add(item.optString("key", ""));
+            labels.add(item.optString("label", "Аккаунт"));
+        }
+        if (labels.isEmpty()) { message("Сохранённых аккаунтов пока нет."); return; }
+        new android.app.AlertDialog.Builder(this)
+            .setTitle("Выбери аккаунт")
+            .setItems(labels.toArray(new String[0]), (dialog, which) -> {
+                if (which < 0 || which >= keys.size()) return;
+                if (SessionStore.activateAccount(this, keys.get(which))) {
+                    appUnlockedThisForeground = false;
+                    if (SessionStore.appLockEnabled(this)) {
+                        showPage("app_locked");
+                        authenticateAppLock();
+                    } else {
+                        appUnlockedThisForeground = true;
+                        registerCryptoKeys(() -> showPage("home"));
+                    }
+                } else message("Не удалось переключить аккаунт. Войди в него заново.");
+            }).setNegativeButton("Отмена", null).show();
     }
 
     private void appearanceScreen() {
