@@ -40,6 +40,7 @@ public class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        lightMode = "light".equals(SessionStore.cryptoGet(this, "appearance_theme"));
         if (SessionStore.token(this).isEmpty()) {
             showPage("welcome");
         } else if (SessionStore.appLockEnabled(this)) {
@@ -635,8 +636,14 @@ public class MainActivity extends Activity {
         TextView go = text("→", 22, true, 0xffb9adff);
         go.setGravity(Gravity.CENTER);
         searchRow.addView(go, new LinearLayout.LayoutParams(dp(34), dp(52)));
-        searchRow.setOnClickListener(v -> showPage("search"));
-        go.setOnClickListener(v -> showPage("search"));
+        searchRow.setOnClickListener(v -> {
+            try { SessionStore.cryptoPut(this, "global_search_query", value(searchField)); } catch (Exception ignored) {}
+            showPage("search");
+        });
+        go.setOnClickListener(v -> {
+            try { SessionStore.cryptoPut(this, "global_search_query", value(searchField)); } catch (Exception ignored) {}
+            showPage("search");
+        });
         LinearLayout.LayoutParams searchParams = new LinearLayout.LayoutParams(-1, dp(52));
         searchParams.setMargins(0, dp(18), 0, dp(16));
         body.addView(searchRow, searchParams);
@@ -647,6 +654,20 @@ public class MainActivity extends Activity {
         filters.addView(filterChip("Личные", false), new LinearLayout.LayoutParams(0, dp(38), 1));
         filters.addView(filterChip("Группы", false), new LinearLayout.LayoutParams(0, dp(38), 1));
         body.addView(filters);
+
+        LinearLayout shortcuts = row();
+        shortcuts.setPadding(0, 0, 0, dp(10));
+        Button notificationsShortcut = button("Уведомления", () -> showPage("notifications"));
+        Button communitiesShortcut = button("Сообщества", () -> openCommunity(false));
+        notificationsShortcut.setTextSize(12);
+        communitiesShortcut.setTextSize(12);
+        LinearLayout.LayoutParams shortcutParams = new LinearLayout.LayoutParams(0, dp(48), 1);
+        shortcutParams.setMargins(dp(3), 0, dp(3), 0);
+        shortcuts.addView(notificationsShortcut, shortcutParams);
+        LinearLayout.LayoutParams communityParams = new LinearLayout.LayoutParams(0, dp(48), 1);
+        communityParams.setMargins(dp(3), 0, dp(3), 0);
+        shortcuts.addView(communitiesShortcut, communityParams);
+        body.addView(shortcuts);
 
         LinearLayout sectionRow = row();
         sectionRow.addView(text("Недавние", 18, true, white), new LinearLayout.LayoutParams(0, -2, 1));
@@ -1064,7 +1085,9 @@ public class MainActivity extends Activity {
     }
     private void searchScreen() {
         title("Найти людей");subtitle("Ищи по username, имени или фамилии.");
-        EditText q=input("@username или имя",false);body.addView(q);
+        EditText q=input("@username или имя",false);
+        q.setText(SessionStore.cryptoGet(this, "global_search_query"));
+        body.addView(q);
         LinearLayout results=new LinearLayout(this);results.setOrientation(LinearLayout.VERTICAL);body.addView(results);
         body.addView(button("Поиск",()->{
             results.removeAllViews();String query=value(q);
@@ -1176,7 +1199,7 @@ public class MainActivity extends Activity {
                 "first_name",value(name),
                 "last_name",value(surname),
                 "birth_date",birthDate
-            ),true,(data,error)->message("Профиль сохранён."));
+            ),true,(data,error)->message(data.optBoolean("ok", false) ? "Профиль сохранён." : data.optString("message", "Не удалось сохранить профиль.")));
         }));
         body.addView(button("Назад",()->showPage("home")));
     }
@@ -1301,6 +1324,8 @@ public class MainActivity extends Activity {
         body.addView(text("ТЕМА", 11, true, muted));
         body.addView(button(lightMode ? "Включить тёмную тему" : "Включить светлую тему", () -> {
             lightMode = !lightMode;
+            try { SessionStore.cryptoPut(this, "appearance_theme", lightMode ? "light" : "dark"); }
+            catch (Exception e) { message("Не удалось сохранить тему на устройстве."); }
             showPage("appearance");
         }));
         body.addView(text("АКЦЕНТ", 11, true, muted));
