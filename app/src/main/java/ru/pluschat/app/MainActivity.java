@@ -36,6 +36,7 @@ public class MainActivity extends Activity {
     private boolean appUnlockedThisForeground = false;
     private boolean lockPromptInProgress = false;
     private boolean enablingAppLock = false;
+    private android.app.Activity.ScreenCaptureCallback screenCaptureCallback;
 
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -49,6 +50,23 @@ public class MainActivity extends Activity {
             showPage("home");
             registerCryptoKeys(null);
         }
+    }
+
+    @Override protected void onStart() {
+        super.onStart();
+        if (android.os.Build.VERSION.SDK_INT >= 34 && screenCaptureCallback == null) {
+            screenCaptureCallback = () -> runOnUiThread(() ->
+                message("Android сообщил о создании скриншота этого экрана. Не делись им без согласия собеседника."));
+            registerScreenCaptureCallback(getMainExecutor(), screenCaptureCallback);
+        }
+    }
+
+    @Override protected void onStop() {
+        if (android.os.Build.VERSION.SDK_INT >= 34 && screenCaptureCallback != null) {
+            unregisterScreenCaptureCallback(screenCaptureCallback);
+            screenCaptureCallback = null;
+        }
+        super.onStop();
     }
 
     @Override protected void onResume() {
