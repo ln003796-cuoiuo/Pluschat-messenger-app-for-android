@@ -57,6 +57,11 @@ public final class SessionStore {
         catch (Exception ignored) {}
     }
 
+    public static void cryptoRemove(Context context, String key) {
+        try { prefs(context).edit().remove("crypto_" + key).apply(); }
+        catch (Exception ignored) {}
+    }
+
     public static void clear(Context context) {
         // Keep device binding and E2EE private keys across logout. Deleting crypto keys
         // while the server still pins the old public identity would make this device
