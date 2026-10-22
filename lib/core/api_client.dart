@@ -164,6 +164,21 @@ class ApiClient {
   });
 
   Future<Map<String, dynamic>> me() => get('/api/v1/auth/me');
+  Future<Map<String, dynamic>> forgotPassword(String email) =>
+      post('/api/v1/auth/password/forgot',
+          authenticated: false, body: {'email': email.trim()});
+
+  Future<Map<String, dynamic>> resetPassword({
+    required String token, required String password,
+  }) => post('/api/v1/auth/password/reset', authenticated: false,
+      body: {'token': token, 'password': password});
+
+  Future<Map<String, dynamic>> search(String query) =>
+      get('/api/v1/search', query: {'q': query.trim()});
+
+  Future<Map<String, dynamic>> createDirectConversation(String userId) =>
+      post('/api/v1/conversations', body: {'recipient_id': userId});
+
   Future<Map<String, dynamic>> conversations() => get('/api/v1/conversations');
   Future<Map<String, dynamic>> messages(String id) =>
       get('/api/v1/conversations/$id/messages');
