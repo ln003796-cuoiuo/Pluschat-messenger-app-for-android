@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../core/api_client.dart';
 import '../core/ui_helpers.dart';
 import 'devices_page.dart';
@@ -32,6 +33,21 @@ class ProfilePage extends StatelessWidget {
           },
         ),
       ])),
+      const SizedBox(height: 10),
+      OutlinedButton.icon(
+        onPressed: () async {
+          try {
+            final image = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 88, maxWidth: 1200);
+            if (image == null) return;
+            await api.uploadAvatar(image);
+            if (context.mounted) showPluschatNotice(context, 'Аватар обновлён.');
+          } catch (e) {
+            if (context.mounted) showPluschatNotice(context, e.toString());
+          }
+        },
+        icon: const Icon(Icons.add_a_photo_outlined),
+        label: const Text('Изменить аватар'),
+      ),
       const SizedBox(height: 14),
       _profileItem(context, Icons.shield_outlined, 'Безопасность и устройства', 'Активные сессии и устройства', onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => DevicesPage(api: api)))),
       _profileItem(context, Icons.lock_outline_rounded, 'Конфиденциальность', 'Видимость профиля и разрешения', onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => PrivacySettingsPage(api: api)))),
