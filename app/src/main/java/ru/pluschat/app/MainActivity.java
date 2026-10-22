@@ -33,15 +33,84 @@ public class MainActivity extends Activity {
     private java.io.File voiceTempFile;
     private long voiceStartedAt;
     private boolean recordingVoice = false;
+    private boolean appUnlockedThisForeground = false;
+    private boolean lockPromptInProgress = false;
+    private boolean enablingAppLock = false;
 
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (SessionStore.token(this).isEmpty()) {
             showPage("welcome");
+        } else if (SessionStore.appLockEnabled(this)) {
+            showPage("app_locked");
+            authenticateAppLock();
         } else {
+            appUnlockedThisForeground = true;
             showPage("home");
             registerCryptoKeys(null);
         }
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        if (SessionStore.token(this).isEmpty()) return;
+        if (SessionStore.appLockEnabled(this) && !appUnlockedThisForeground && !lockPromptInProgress) {
+            if (!"app_locked".equals(page)) showPage("app_locked");
+            authenticateAppLock();
+        }
+    }
+
+    @Override protected void onPause() {
+        super.onPause();
+        if (!lockPromptInProgress && SessionStore.appLockEnabled(this)) appUnlockedThisForeground = false;
+    }
+
+    private void authenticateAppLock() {
+        if (android.os.Build.VERSION.SDK_INT < 28) {
+            message("Для биометрической блокировки требуется Android 9 или новее.");
+            return;
+        }
+        if (lockPromptInProgress) return;
+        lockPromptInProgress = true;
+        android.hardware.biometrics.BiometricPrompt prompt =
+            new android.hardware.biometrics.BiometricPrompt.Builder(this)
+                .setTitle("Плюс Чат")
+                .setSubtitle("Подтверди личность, чтобы открыть переписки")
+                .setDescription("Переписки скрыты до успешной проверки.")
+                .setNegativeButton("Отмена", getMainExecutor(), (dialog, which) -> {
+                    lockPromptInProgress = false;
+                    appUnlockedThisForeground = false;
+                    if (enablingAppLock) {
+                        enablingAppLock = false;
+                        SessionStore.setAppLockEnabled(MainActivity.this, false);
+                        showPage("settings");
+                    } else showPage("app_locked");
+                }).build();
+        prompt.authenticate(new android.os.CancellationSignal(), getMainExecutor(), new android.hardware.biometrics.BiometricPrompt.AuthenticationCallback() {
+            @Override public void onAuthenticationSucceeded(android.hardware.biometrics.BiometricPrompt.AuthenticationResult result) {
+                lockPromptInProgress = false;
+                appUnlockedThisForeground = true;
+                if (enablingAppLock) {
+                    SessionStore.setAppLockEnabled(MainActivity.this, true);
+                    enablingAppLock = false;
+                    message("Биометрическая блокировка включена.");
+                }
+                showPage("home");
+                registerCryptoKeys(null);
+            }
+            @Override public void onAuthenticationFailed() {
+                message("Биометрия не распознана. Попробуй ещё раз.");
+            }
+            @Override public void onAuthenticationError(int code, CharSequence errString) {
+                lockPromptInProgress = false;
+                appUnlockedThisForeground = false;
+                if (enablingAppLock) {
+                    enablingAppLock = false;
+                    SessionStore.setAppLockEnabled(MainActivity.this, false);
+                    showPage("settings");
+                } else if (SessionStore.appLockEnabled(MainActivity.this)) showPage("app_locked");
+            }
+        });
     }
 
     private int dp(float value) { return (int) (value * getResources().getDisplayMetrics().density + 0.5f); }
@@ -152,6 +221,7 @@ public class MainActivity extends Activity {
         }
         setContentView(root);
         if (target.equals("welcome")) welcomeScreen();
+        else if (target.equals("app_locked")) appLockedScreen();
         else if (target.equals("auth")) authScreen();
         else if (target.equals("forgot_password")) forgotPasswordScreen();
         else if (target.equals("devices")) devicesScreen();
@@ -174,6 +244,17 @@ public class MainActivity extends Activity {
         else if (target.equals("twofa_setup")) twoFactorSetupScreen();
         else if (target.equals("permissions")) permissionsScreen();
     }
+    private void appLockedScreen() {
+        title("Плюс Чат заблокирован");
+        subtitle("Переписки скрыты. Подтверди личность для продолжения.");
+        body.addView(button("Разблокировать биометрией", this::authenticateAppLock));
+        body.addView(button("Выйти из аккаунта", () -> {
+            SessionStore.clear(this);
+            appUnlockedThisForeground = false;
+            showPage("auth");
+        }));
+    }
+
     private View navItem(String symbol, String label, String destination, boolean selected) {
         LinearLayout item = new LinearLayout(this);
         item.setOrientation(LinearLayout.VERTICAL);
@@ -1077,6 +1158,27 @@ public class MainActivity extends Activity {
         body.addView(button("Приватность и безопасность  ›", () -> showPage("privacy")));
         body.addView(button("Уведомления", () -> showPage("notifications")));
         body.addView(text("Двухэтапная аутентификация обязательна. Изменить или отключить её без повторной проверки личности нельзя.", 12, false, muted));
+        Switch biometricLock = new Switch(this);
+        biometricLock.setText("Блокировка приложения биометрией");
+        biometricLock.setTextColor(white);
+        biometricLock.setChecked(SessionStore.appLockEnabled(this));
+        biometricLock.setPadding(0, dp(12), 0, dp(12));
+        biometricLock.setOnCheckedChangeListener((view, enabled) -> {
+            if (enabled) {
+                if (android.os.Build.VERSION.SDK_INT < 28) {
+                    biometricLock.setChecked(false);
+                    message("Для биометрической блокировки требуется Android 9 или новее.");
+                    return;
+                }
+                enablingAppLock = true;
+                authenticateAppLock();
+            } else {
+                SessionStore.setAppLockEnabled(this, false);
+                appUnlockedThisForeground = true;
+                message("Биометрическая блокировка отключена.");
+            }
+        });
+        body.addView(biometricLock);
         body.addView(button("Активные устройства", () -> showPage("devices")));
         body.addView(button("Разрешения Android", () -> showPage("permissions")));
         body.addView(button("Выйти из аккаунта", this::logout));
