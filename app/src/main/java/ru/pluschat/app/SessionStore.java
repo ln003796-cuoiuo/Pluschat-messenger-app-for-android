@@ -48,6 +48,41 @@ public final class SessionStore {
         prefs(context).edit().putString("crypto_" + key, value).apply();
     }
 
+    public static void rememberAccount(Context context, String accessToken, String refreshToken, String label) throws Exception {
+        if (accessToken == null || accessToken.isEmpty()) return;
+        String key = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(accessToken.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        SharedPreferences p = prefs(context);
+        org.json.JSONArray accounts;
+        try { accounts = new org.json.JSONArray(p.getString("account_index", "[]")); }
+        catch (Exception e) { accounts = new org.json.JSONArray(); }
+        boolean found = false;
+        for (int i = 0; i < accounts.length(); i++) {
+            org.json.JSONObject item = accounts.optJSONObject(i);
+            if (item != null && key.equals(item.optString("key"))) {
+                item.put("label", label == null || label.isEmpty() ? "Аккаунт" : label);
+                found = true;
+            }
+        }
+        if (!found) accounts.put(new org.json.JSONObject().put("key", key).put("label", label == null || label.isEmpty() ? "Аккаунт" : label));
+        p.edit().putString("account_index", accounts.toString())
+            .putString("account_token_" + key, accessToken)
+            .putString("account_refresh_" + key, refreshToken == null ? "" : refreshToken).apply();
+    }
+    public static org.json.JSONArray accounts(Context context) {
+        try { return new org.json.JSONArray(prefs(context).getString("account_index", "[]")); }
+        catch (Exception e) { return new org.json.JSONArray(); }
+    }
+    public static boolean activateAccount(Context context, String key) {
+        try {
+            SharedPreferences p = prefs(context);
+            String token = p.getString("account_token_" + key, "");
+            String refresh = p.getString("account_refresh_" + key, "");
+            if (token.isEmpty()) return false;
+            save(context, token, refresh);
+            return true;
+        } catch (Exception e) { return false; }
+    }
+
     public static boolean appLockEnabled(Context context) {
         try { return prefs(context).getBoolean("app_lock_enabled", false); }
         catch (Exception e) { return false; }
