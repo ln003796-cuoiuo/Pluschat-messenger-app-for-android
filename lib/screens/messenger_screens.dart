@@ -198,9 +198,21 @@ class ProfilePage extends StatelessWidget {
       Container(padding: const EdgeInsets.all(22), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(22)), child: Column(children: [
         const CircleAvatar(radius: 38, backgroundColor: Color(0xFFDCEBFF), child: Icon(Icons.person_rounded, size: 42, color: plusBlue)),
         const SizedBox(height: 12),
-        const Text('Ваш профиль', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: plusInk)),
-        const SizedBox(height: 5),
-        const Text('Управление аккаунтом и безопасностью', textAlign: TextAlign.center, style: TextStyle(color: plusMuted)),
+        FutureBuilder<Map<String, dynamic>>(
+          future: api.me(),
+          builder: (context, snapshot) {
+            final user = Map<String, dynamic>.from((snapshot.data?['user'] as Map?) ?? const {});
+            final first = user['first_name']?.toString() ?? '';
+            final last = user['last_name']?.toString() ?? '';
+            final full = '$first $last'.trim();
+            final name = full.isEmpty ? (user['username']?.toString().isNotEmpty == true ? '@${user['username']}' : 'Ваш профиль') : full;
+            return Column(children: [
+              Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: plusInk), textAlign: TextAlign.center),
+              const SizedBox(height: 4),
+              Text(user['email']?.toString() ?? 'Управление аккаунтом и безопасностью', textAlign: TextAlign.center, style: const TextStyle(color: plusMuted)),
+            ]);
+          },
+        ),
       ])),
       const SizedBox(height: 14),
       _profileItem(context, Icons.shield_outlined, 'Безопасность и устройства', 'Активные сессии и устройства', onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => DevicesPage(api: api)))),
