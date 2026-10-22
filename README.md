@@ -14,7 +14,6 @@ Flutter-приложение мессенджера с прямым HTTPS-под
 ```sh
 flutter pub get
 flutter analyze
-flutter test
 flutter build apk --release
 ```
 
