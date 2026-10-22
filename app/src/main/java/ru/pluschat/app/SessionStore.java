@@ -50,7 +50,7 @@ public final class SessionStore {
 
     public static void rememberAccount(Context context, String accessToken, String refreshToken, String label) throws Exception {
         if (accessToken == null || accessToken.isEmpty()) return;
-        String key = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(accessToken.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        String key = android.util.Base64.encodeToString(java.security.MessageDigest.getInstance("SHA-256").digest(accessToken.getBytes(java.nio.charset.StandardCharsets.UTF_8)), android.util.Base64.NO_WRAP | android.util.Base64.URL_SAFE);
         SharedPreferences p = prefs(context);
         org.json.JSONArray accounts;
         try { accounts = new org.json.JSONArray(p.getString("account_index", "[]")); }
